@@ -1,15 +1,15 @@
-# ts-lifx
+# lifx-ts
 
 Communicates with [LIFX](https://www.lifx.com/) smart bulbs over the local network.
 
 - Robust [TypeScript](https://www.typescriptlang.org/) implementation
 - zero external dependencies
-- just `npm install ts-lifx`, even in a package without TypeScript
+- just `npm install lifx-ts`, even in a package without TypeScript
 
 ## Discovery
 
 ```typescript
-import { LifxClient, LifxDevice } from 'ts-lifx'
+import { LifxClient, LifxDevice } from 'lifx-ts'
 
 async function discovery() {
 	const client = new LifxClient()
@@ -54,7 +54,7 @@ Set the RGB or RGBA color of a light.
 To make changes to the module, you will need `typescript`.
 
 ```
-cd ts-lifx
+cd lifx-ts
 npm install -g typescript
 tsc --watch
 ```
