@@ -1,0 +1,19 @@
+{
+	"name": "ts-lifx",
+	"version": "1.0.0",
+	"description": "TypeScript module for controlling LIFX smart bulbs",
+	"main": "dist/index.js",
+	"types": "dist/index.d.ts",
+	"scripts": {
+		"products": "cd data && wget https://raw.githubusercontent.com/LIFX/products/master/products.json"
+	},
+	"author": "Keshav Saharia",
+	"license": "MIT",
+	"devDependencies": {
+		"@types/node": "^18.7.13"
+	},
+	"bugs": {
+		"url": "https://github.com/keshavsaharia/cloudsearch-ts/issues"
+	},
+	"homepage": "https://github.com/keshavsaharia/cloudsearch-ts#readme"
+}
