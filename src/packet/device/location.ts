@@ -15,7 +15,7 @@ abstract class DeviceGroupPacket extends Packet<DeviceGroup> {
 	}
 
 	buildResponse(payload: Payload) {
-		const id = payload.getString(16)
+		const id = payload.getUUID(16)
 		const label = payload.getString(32)
 		const updated = payload.getTimestamp()
 
@@ -48,7 +48,7 @@ export class DeviceSetLocation extends DeviceGroupPacket {
 export class DeviceGetLocation extends DeviceGroupPacket {
 
 	constructor() {
-		super(50, 0)
+		super(48, 0)
 	}
 
 	buildPayload() {}
@@ -75,7 +75,7 @@ export class DeviceSetGroup extends DeviceGroupPacket {
 export class DeviceGetGroup extends DeviceGroupPacket {
 
 	constructor() {
-		super(53, 0)
+		super(51, 0)
 	}
 
 	buildPayload() {}

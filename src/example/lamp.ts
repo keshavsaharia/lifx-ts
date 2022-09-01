@@ -3,24 +3,20 @@ import { LifxClient } from '..'
 async function main() {
 	const lifx = new LifxClient()
 	await lifx.discover()
+	lifx.monitor(2000)
 
 	lifx.onConnect(async (device) => {
 		await device.getLabel()
-		if (device.getDeviceLabel() === 'Floor Lamp') {
-			await device.load()
-
-			device.watchPower().onPower(() => {
-				console.log(device.isOn() ? 'lamp on' : 'lamp off')
-			})
-		}
-
+		console.log('connected ' + device.getDeviceLabel())
 	})
 
-	// lifx.onLoad(async (device) => {
-	// 	if (device.getDeviceLabel() == 'Floor Lamp') {
-	// 		await device.turnOn()
-	// 	}
-	// })
+	lifx.onDisconnect(async (device) => {
+		console.log('lost ' + device.getDeviceLabel())
+	})
+
+	lifx.onLoad(async (device) => {
+		console.log('loaded ' + device.getDeviceLabel())
+	})
 }
 
 main()

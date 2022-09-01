@@ -115,6 +115,13 @@ export default class Payload {
 		return str
 	}
 
+	getUUID(length: number) {
+		this.validateOffset(length)
+		const uuid = this.buffer.slice(this.offset, this.offset + length).toString('hex')
+		this.addOffset(length)
+		return uuid
+	}
+
 	addColor(color: LightColor) {
 		this.validateOffset(8)
 
@@ -173,7 +180,7 @@ export default class Payload {
 	getTimestamp() {
 		this.validateOffset(8)
 		// Convert timestamp from nanoseconds
-		const timestamp = this.buffer.readUIntLE(this.offset + 2, 6) * (Math.pow(2, 16) / 1000000)
+		const timestamp = Math.round(this.buffer.readUIntLE(this.offset + 2, 6) * (Math.pow(2, 16) / 1000000))
 		this.addOffset(8)
 		return timestamp
 	}

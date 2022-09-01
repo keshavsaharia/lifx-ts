@@ -26,7 +26,7 @@ export class LightSetPower extends LightPowerPacket {
 	duration?: number
 
 	constructor(on: boolean, duration?: number) {
-		super(21, 2)
+		super(117, 6)
 		this.willRespond()
 		this.on = on
 		this.duration = duration
@@ -42,7 +42,7 @@ export class LightSetPower extends LightPowerPacket {
 export class LightGetPower extends LightPowerPacket {
 
 	constructor() {
-		super(20, 0)
+		super(118, 0)
 		this.willRespond()
 	}
 

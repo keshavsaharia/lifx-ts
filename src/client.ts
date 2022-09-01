@@ -195,20 +195,25 @@ export default class LifxClient {
 	addDevice(device: LifxDevice): LifxDevice {
 		this.devices.push(device)
 		this.device[device.getMacAddress()] = device
+		console.log('devices', this.devices.length)
 		this.emit('connect', device)
 		return device
 	}
 
 	removeDevice(device: LifxDevice): LifxDevice | null {
-		const index = this.devices.findIndex((d) => (d == device))
-		if (index >= 0) {
-			this.devices.splice(index, 1)
-			delete this.device[device.getMacAddress()]
-			this.emit('disconnect', device)
-			device.stop()
-			return device
-		}
-		return null
+		return this.removeDeviceIndex(
+			this.devices.findIndex((d) => (d == device)))
+	}
+
+	private removeDeviceIndex(index: number) {
+		if (index < 0 || index >= this.devices.length)
+			return null
+
+		const device = this.devices.splice(index, 1)[0]
+		delete this.device[device.getMacAddress()]
+		device.stop()
+		this.emit('disconnect', device)
+		return device
 	}
 
 	monitor(interval: number) {
@@ -228,17 +233,17 @@ export default class LifxClient {
 		if (! this.alive)
 			return
 
-		const pongs = await Promise.all(this.devices.map((device) => device.ping(timeout)))
+		const responses = await Promise.all(this.devices.map((device) => device.ping(timeout)))
+		const pongs = new Set<string>()
+		responses.forEach((response) => {
+			if (response != null)
+				pongs.add(response)
+		})
 
-		for (let i = 0 ; i < pongs.length ; i++) {
-			if (! pongs[i]) {
-				pongs.splice(i, 1)
-				const device = this.devices.splice(i, 1)[0]
-				delete this.device[device.getMacAddress()]
-				this.emit('disconnect', device)
-				i--
-			}
-		}
+		this.devices.forEach((device) => {
+			if (! pongs.has(device.getMacAddress()))
+				this.removeDevice(device)
+		})
 	}
 
 	on(event: Array<string> | string, handler: LifxDeviceHandler) {
@@ -299,7 +304,12 @@ export default class LifxClient {
 
 			const deviceTimeout = setTimeout(() => {
 				this.clearPacket(packet, transmission)
-				reject(DeviceTimeoutError)
+				reject({
+					...DeviceTimeoutError,
+					label: device.getDeviceLabel(),
+					ip: device.getIP(),
+					mac: device.getMacAddress()
+				})
 			}, timeout || DEFAULT_TIMEOUT)
 
 			packet.onResponse((response, payload) => {
