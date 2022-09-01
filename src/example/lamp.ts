@@ -8,6 +8,7 @@ async function main() {
 	lifx.onConnect(async (device) => {
 		await device.getLabel()
 		console.log('connected ' + device.getDeviceLabel())
+		device.load()
 	})
 
 	lifx.onDisconnect(async (device) => {
@@ -16,6 +17,7 @@ async function main() {
 
 	lifx.onLoad(async (device) => {
 		console.log('loaded ' + device.getDeviceLabel())
+		console.log('time: ' + new Date(device.info!.time))
 	})
 }
 

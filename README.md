@@ -8,8 +8,10 @@ Communicates with [LIFX](https://www.lifx.com/) smart bulbs over the local netwo
 
 ## Discovery
 
+Discover all Lifx products on the local network.
+
 ```typescript
-import { LifxClient, LifxDevice } from 'lifx-ts'
+import { LifxClient } from 'lifx-ts'
 
 async function discovery() {
 	const client = new LifxClient()
@@ -22,6 +24,28 @@ async function discovery() {
 }
 
 discovery()
+```
+
+## Monitoring
+
+The client can periodically ping each device and handle disconnect/reconnect events.
+
+```typescript
+const client = new LifxClient()
+await client.discover()
+client.monitor()
+
+client.onConnect((device) => device.load())
+client.onLoad((device) => console.log(device.getState()))
+client.onDisconnect((device) => console.log('Lost ' + device.getDeviceLabel()))
+```
+
+## Watching a device
+
+```typescript
+client.onConnect((device) => {
+	device.watch()
+})
 ```
 
 ## Device management

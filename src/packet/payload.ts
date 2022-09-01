@@ -180,7 +180,7 @@ export default class Payload {
 	getTimestamp() {
 		this.validateOffset(8)
 		// Convert timestamp from nanoseconds
-		const timestamp = Math.round(this.buffer.readUIntLE(this.offset + 2, 6) * (Math.pow(2, 16) / 1000000))
+		const timestamp = parseInt(this.buffer.readBigUint64LE(this.offset).toString(), 10)
 		this.addOffset(8)
 		return timestamp
 	}
