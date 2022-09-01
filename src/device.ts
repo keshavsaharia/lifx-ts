@@ -51,7 +51,8 @@ import {
 	DEFAULT_INTERVAL,
 	LIFX_PORT,
 	LIFX_PRODUCT,
-	LIFX_STATE_KEYS
+	LIFX_STATE_KEYS,
+	RATE_LIMIT
 } from './constant'
 
 export default class LifxDevice {
@@ -76,7 +77,9 @@ export default class LifxDevice {
 	handler: { [event: string]: Array<LifxDeviceHandler> }
 	watcher: { [key: string]: NodeJS.Timer }
 	updated: { [key: string]: number }
-	timeout: number = 0
+
+	// Timestamp of last message
+	message?: number
 
 	// Caches a JSON representation of the device state, so updates
 	// are triggered when any part of this object changes
@@ -497,10 +500,12 @@ export default class LifxDevice {
 			return result
 		}
 		catch (error) {
+			// Disconnect the device if the request timed out
+			if (error.code === 'device_timeout')
+				this.remove()
+			// Return cached value if there is one, otherwise throw the error
 			if (device[key])
 				return device[key]
-			if (error.code === 'device_timeout')
-				this.timeout++
 			throw error
 		}
 	}
@@ -538,6 +543,18 @@ export default class LifxDevice {
 		if (this.location == null)
 			return false
 		return this.location.id === ((typeof location === 'string') ? location : location.id)
+	}
+
+	canSend(rateLimit?: number) {
+		const now = Date.now()
+
+		// Message has not been sent yet, or within threshold
+		if (this.message == null || (this.message + (rateLimit || RATE_LIMIT) < now)) {
+			this.message = now
+			return true
+		}
+		// Wait until message time is within rate limit
+		return false
 	}
 
 	toString() {

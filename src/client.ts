@@ -23,7 +23,8 @@ import {
 
 import {
 	LIFX_PORT,
-	DEFAULT_TIMEOUT
+	DEFAULT_TIMEOUT,
+	RATE_LIMIT
 } from './constant'
 
 import {
@@ -40,9 +41,19 @@ export default class LifxClient {
 	// Unique ID
 	private id: number
 
+	// Devices and mapping
+	private devices: Array<LifxDevice>
+	private device: { [ip: string]: LifxDevice }
+
 	// Sequence number for mapping UDP requests to responses
 	private sequence: number
 	private request: { [sequence: number]: Packet<any> }
+	private queue: Array<{
+		transmission: Transmission
+		device: LifxDevice
+		resolve?: (bytes: number) => any
+	}>
+	private daemon: NodeJS.Timer
 
 	// Network interface and socket
 	private network: Array<LifxNetworkInterface>
@@ -50,10 +61,6 @@ export default class LifxClient {
 	private port: number
 	private alive: boolean
 	private monitoring?: NodeJS.Timer
-
-	// Devices and mapping
-	private devices: Array<LifxDevice>
-	private device: { [ip: string]: LifxDevice }
 
 	// Event handler
 	private handler: { [event: string]: Array<LifxDeviceHandler> }
@@ -68,6 +75,7 @@ export default class LifxClient {
 		// Sequenced request cache
 		this.request = {}
 		this.sequence = 0
+		this.queue = []
 
 		// Devices and associated callback function map
 		this.devices = []
@@ -91,6 +99,7 @@ export default class LifxClient {
 		// If the socket is successfully created, set the "alive" flag to true
 		this.port = port || LIFX_PORT
 		this.udp = await createSocket(this.port, this.receivePacket.bind(this))
+		this.daemon = setInterval(this.dequeue.bind(this), RATE_LIMIT)
 		this.alive = true
 
 		// Listen to shutdown signals and close the socket
@@ -103,6 +112,12 @@ export default class LifxClient {
 	async stop(): Promise<any> {
 		if (! this.udp)
 			return
+
+		// Clear queue and rate limit interval
+		this.queue = []
+		clearInterval(this.daemon)
+
+		// Stop monitoring intervals
 		this.stopMonitoring()
 		await Promise.all(this.devices.map((device) => device.stop()))
 
@@ -195,7 +210,6 @@ export default class LifxClient {
 	addDevice(device: LifxDevice): LifxDevice {
 		this.devices.push(device)
 		this.device[device.getMacAddress()] = device
-		console.log('devices', this.devices.length)
 		this.emit('connect', device)
 		return device
 	}
@@ -289,9 +303,9 @@ export default class LifxClient {
 			await this.start()
 
 		// Create a Transmission object and unicast to the device without processing
-		// any response that is sent back from the device
+		// any response that is sent back from the device or waiting for a reply
 		const transmission = this.build(packet, device, true)
-		await this.unicast(transmission, device)
+		this.unicast(transmission, device)
 		return transmission
 	}
 
@@ -341,8 +355,43 @@ export default class LifxClient {
 		return broadcast(this.udp, transmission.buffer, network.broadcast)
 	}
 
-	private async unicast(transmission: Transmission, device: LifxDevice) {
-		return unicast(this.udp, transmission.buffer, device.getIP(), device.getPort())
+	private async unicast(transmission: Transmission, device: LifxDevice, handler?: () => any) {
+		if (device.canSend())
+			return unicast(this.udp, transmission.buffer, device.getIP(), device.getPort())
+		else return new Promise((resolve: (bytes: number) => any) => {
+			this.queue.push({
+				transmission,
+				device,
+				resolve
+			})
+		})
+	}
+
+	private async dequeue() {
+		// Empty queue
+		if (this.queue.length == 0)
+			return
+
+		// Find enqueued messages that can be sent
+		const send = this.queue.filter((enqueued) => enqueued.device.canSend())
+		if (send.length > 0) {
+			// Remove the messages from the queue
+			send.forEach((enqueued) => {
+				const index = this.queue.findIndex((e) => (e == enqueued))
+				if (index >= 0)
+					this.queue.splice(index, 1)
+			})
+
+			// Send all dequeued messages
+			return Promise.all(send.map((enqueued) =>
+					unicast(this.udp,
+							enqueued.transmission.buffer,
+							enqueued.device.getIP(),
+							enqueued.device.getPort()).then((bytes) => {
+								if (enqueued.resolve)
+									enqueued.resolve(bytes)
+							})))
+		}
 	}
 
 	//

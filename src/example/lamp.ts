@@ -8,7 +8,9 @@ async function main() {
 	lifx.onConnect(async (device) => {
 		await device.getLabel()
 		console.log('connected ' + device.getDeviceLabel())
-		device.load()
+		if (device.getDeviceLabel() != 'Hallway') {
+			device.load()
+		}
 	})
 
 	lifx.onDisconnect(async (device) => {
@@ -16,8 +18,14 @@ async function main() {
 	})
 
 	lifx.onLoad(async (device) => {
-		console.log('loaded ' + device.getDeviceLabel())
-		console.log('time: ' + new Date(device.info!.time))
+		const name = device.getDeviceLabel()
+		for (let i = 0 ; i < 20 ; i++) {
+			if (Math.random() < 0.5)
+				device.turnOff()
+			else
+				device.turnOn()
+		}
+
 	})
 }
 

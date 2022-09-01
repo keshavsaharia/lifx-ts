@@ -43,5 +43,6 @@ export const LIFX_STATE_KEYS = ['firmware', 'version', 'info', 'label', 'group',
 export const PING_TIMEOUT = 3000
 export const DEFAULT_TIMEOUT = 3000
 export const DEFAULT_INTERVAL = 5000
+export const RATE_LIMIT = 50
 
 export const BROADCAST_TARGET = '00:00:00:00:00:00'
