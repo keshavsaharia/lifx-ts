@@ -24,7 +24,17 @@ async function discovery() {
 discovery()
 ```
 
-## Device
+## Device management
+
+### `device.getFirmware()`
+
+### `device.getVersion()`
+
+### `device.echo()`
+
+### `device.reboot()`
+
+## Light bulb control
 
 ### `device.turnOn()`
 
@@ -33,6 +43,39 @@ Turn on the device.
 ### `device.turnOff()`
 
 Turn off the device.
+
+### `device.getPower()`
+
+Returns the on/off power state of the device as a boolean.
+
+```typescript
+const power = await device.getPower()
+console.log(power.on) // true/false
+```
+
+### `device.fadeOn(duration)`
+
+Fade the device to on over the given duration.
+
+
+### `device.getPower()`
+
+Returns the on/off power state of the device as a boolean.
+
+```typescript
+const power = await device.getPower()
+console.log(power.on) // true/false
+```
+
+### `device.setPower(on)`
+
+Sets the on/off power state of the device as a boolean.
+
+```typescript
+await device.setPower(true)
+await device.turnOn()	// equivalent
+```
+
 
 ### `device.setColor(color [, duration])`
 

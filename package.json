@@ -1,6 +1,6 @@
 {
 	"name": "lifx-ts",
-	"version": "1.0.0",
+	"version": "1.1.0",
 	"description": "TypeScript module for controlling LIFX smart bulbs",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",

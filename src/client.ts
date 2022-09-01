@@ -10,7 +10,8 @@ import {
 import {
 	LifxNetworkInterface,
 	Transmission,
-	LifxDeviceHandler
+	LifxDeviceHandler,
+	DeviceGroup
 } from './interface'
 
 import {
@@ -92,7 +93,37 @@ export default class LifxClient {
 		this.udp = await createSocket(this.port, this.receivePacket.bind(this))
 		this.alive = true
 
+		// Listen to shutdown signals and close the socket
+		process.on('SIGTERM', () => this.stop())
+        process.on('SIGINT', () => this.stop())
+
 		return this
+	}
+
+	async stop(): Promise<any> {
+		if (! this.udp)
+			return
+		this.stopMonitoring()
+		await Promise.all(this.devices.map((device) => device.stop()))
+
+		if (this.udp && ! this.alive) {
+			this.udp.unref()
+			return
+		}
+
+		return new Promise((resolve: (c: LifxClient) => any) => {
+			try {
+				this.udp.close(() => {
+					this.udp.unref()
+					this.alive = false
+					resolve(this)
+				})
+			}
+			catch (error) {
+				this.alive = false
+				resolve(this)
+			}
+		})
 	}
 
 	/**
@@ -143,6 +174,24 @@ export default class LifxClient {
 		return this.devices
 	}
 
+	getGroups(): Array<DeviceGroup> {
+		return this.devices.map((device) => device.group)
+			.filter((group) => group != null) as Array<DeviceGroup>
+	}
+
+	getLocations(): Array<DeviceGroup> {
+		return this.devices.map((device) => device.location)
+			.filter((group) => group != null) as Array<DeviceGroup>
+	}
+
+	getGroup(ref: DeviceGroup | string) {
+		return this.devices.filter((device) => device.inGroup(ref))
+	}
+
+	getLocation(ref: DeviceGroup | string) {
+		return this.devices.filter((device) => device.inLocation(ref))
+	}
+
 	addDevice(device: LifxDevice): LifxDevice {
 		this.devices.push(device)
 		this.device[device.getMacAddress()] = device
@@ -156,19 +205,23 @@ export default class LifxClient {
 			this.devices.splice(index, 1)
 			delete this.device[device.getMacAddress()]
 			this.emit('disconnect', device)
+			device.stop()
 			return device
 		}
 		return null
 	}
 
-	async monitor(interval: number) {
-		if (this.monitoring)
-			clearInterval(this.monitoring)
-
+	monitor(interval: number) {
+		this.stopMonitoring()
 		this.monitoring = setInterval(async () => {
 			await this.ping(interval)
 			await this.discover()
 		}, interval)
+	}
+
+	stopMonitoring() {
+		if (this.monitoring)
+			clearInterval(this.monitoring)
 	}
 
 	async ping(timeout?: number) {
@@ -226,33 +279,13 @@ export default class LifxClient {
 		return this.on('disconnect', handler)
 	}
 
-	async stop(): Promise<any> {
-		if (! this.udp)
-			return
-
-		if (this.monitoring)
-			clearInterval(this.monitoring)
-
-		if (this.udp && ! this.alive) {
-			this.udp.unref()
-			return
-		}
-
-		return new Promise((resolve: (c: LifxClient) => any) => {
-			this.udp.close(() => {
-				this.udp.unref()
-				this.alive = false
-				resolve(this)
-			})
-		})
-	}
-
 	async send<R>(packet: Packet<R>, device: LifxDevice): Promise<Transmission> {
 		if (! this.alive)
 			await this.start()
 
-		// Create a Transmission object and unicast to the device
-		const transmission = this.build(packet, device)
+		// Create a Transmission object and unicast to the device without processing
+		// any response that is sent back from the device
+		const transmission = this.build(packet, device, true)
 		await this.unicast(transmission, device)
 		return transmission
 	}
@@ -270,8 +303,9 @@ export default class LifxClient {
 			}, timeout || DEFAULT_TIMEOUT)
 
 			packet.onResponse((response, payload) => {
+				clearTimeout(deviceTimeout)
+
 				if (device.didRespond(response)) {
-					clearTimeout(deviceTimeout)
 					this.clearPacket(packet, response)
 					resolve(payload)
 				}
@@ -305,9 +339,9 @@ export default class LifxClient {
 	// PACKET CACHING
 	//
 
-	build(packet: Packet<any>, device?: LifxDevice): Transmission {
+	build(packet: Packet<any>, device?: LifxDevice, ignoreResponse?: boolean): Transmission {
 		const transmission = packet.build(this, device)
-		if (packet.expectsResponse())
+		if (! ignoreResponse && packet.expectsResponse())
 			this.cachePacket(packet, transmission)
 		return transmission
 	}

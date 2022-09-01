@@ -17,6 +17,10 @@ export interface LifxVendor {
 export interface LifxProduct {
 	pid: number
 	name: string
+	temperature?: {
+		min: number
+		max: number
+	}
 	features: {
 		hev?: boolean
 		color?: boolean
@@ -29,7 +33,7 @@ export interface LifxProduct {
 		temperature_range?: Array<number>
 		extended_multizone?: boolean
 	}
-	upgrades: Array<{
+	upgrades?: Array<{
 		major: number
 		minor: number
 		features: {

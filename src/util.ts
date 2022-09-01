@@ -44,6 +44,16 @@ export function parseMacAddress(address: string): Buffer {
 	return buffer
 }
 
+export function objectEqual(a: any, b: any) {
+	if (a == null || b == null || typeof a !== 'object' || typeof b !== 'object')
+		return false
+
+	const ak = Object.keys(a),
+		  bk = Object.keys(b)
+
+	return ak.length === bk.length && ak.every((k) => a[k] === b[k]) && bk.every((k) => a[k] === b[k])
+}
+
 export function wait(ms: number) {
 	return new Promise((resolve: (ms: number) => any) => {
 		setTimeout(() => {
