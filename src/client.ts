@@ -348,13 +348,18 @@ export default class LifxClient {
 
 	/**
 	 * @func 	broadcast
-	 * @desc
+	 * @desc	Broadcast the given packet to all devices reachable by the given network interace.
+	 * @param 	{Packet<R>}
 	 */
 	private async broadcast<R>(packet: Packet<R>, network: LifxNetworkInterface) {
 		const transmission = this.build(packet)
 		return broadcast(this.udp, transmission.buffer, network.broadcast)
 	}
 
+	/**
+	 * @func 	unicast
+	 * @desc	Send the given Transmission to the device by unicast.
+	 */
 	private async unicast(transmission: Transmission, device: LifxDevice, handler?: () => any) {
 		if (device.canSend())
 			return unicast(this.udp, transmission.buffer, device.getIP(), device.getPort())
@@ -367,6 +372,9 @@ export default class LifxClient {
 		})
 	}
 
+	/**
+	 * @desc 	Remove queued requests that can be sent by unicast.
+	 */
 	private async dequeue() {
 		// Empty queue
 		if (this.queue.length == 0)
@@ -398,40 +406,66 @@ export default class LifxClient {
 	// PACKET CACHING
 	//
 
-	build(packet: Packet<any>, device?: LifxDevice, ignoreResponse?: boolean): Transmission {
+	/**
+	 * @func 	build
+	 * @desc 	Creates a Transmission typed object with a protocol buffer for sending,
+	 * 			and caches the packet for handling response data if a response is expected.
+	 * @return 	{Transmission} object with compiled data for sending
+	 */
+	private build(packet: Packet<any>, device?: LifxDevice, ignoreResponse?: boolean): Transmission {
 		const transmission = packet.build(this, device)
 		if (! ignoreResponse && packet.expectsResponse())
 			this.cachePacket(packet, transmission)
 		return transmission
 	}
 
-	private getPacket(transmission: Transmission | Response) {
+	/**
+	 * @func 	getPacket
+	 * @desc 	Get the packet associated with the given transmission or response instance.
+	 * @return 	{Packet<any>} associated packet
+	 */
+	private getPacket(transmission: Transmission | Response): Packet<any> | undefined {
 		return this.request[transmission.sequence]
 	}
 
+	/**
+	 * @func 	cachePacket
+	 * @desc 	Set the packet associated with the given transmission or response instance's sequence number.
+	 * @return 	{LifxClient} this
+	 */
 	private cachePacket(packet: Packet<any>, transmission: Transmission) {
 		this.request[transmission.sequence] = packet
 		return this
 	}
 
+	/**
+	 * @func 	clearPacket
+	 * @desc 	Remove the packet associated with the given transmission or response instance's sequence number.
+	 * @return 	{LifxClient} this
+	 */
 	private clearPacket(packet: Packet<any>, p: Response | Transmission): LifxClient {
 		if (this.request[p.sequence] == packet)
 			delete this.request[p.sequence]
 		return this
 	}
 
-
-
 	/**
-	 * Replies from a device will copy the triplet of (source, sequence, target)
-	 * from the request packet. The `sequence` UInt8 is used to determine which request
-	 * resulted in which reply. Sequence increments for each message sent, and then wraps
-	 * to 0 after it reaches 255.
+	 * @func 	nextSequence
+	 * @desc 	Replies from a device will copy the triplet of (source, sequence, target)
+	 * 			from the request packet. The `sequence` UInt8 is used to determine which request
+	 * 			resulted in which reply. Sequence increments for each message sent, and then wraps
+	 * 			to 0 after it reaches 255.
+	 * @return 	{number} - next sequence number
 	 */
 	nextSequence(): number {
 		return this.sequence = (this.sequence + 1) % 255
 	}
 
+	/**
+	 * @func 	getId
+	 * @desc 	Get the unique ID of this client.
+	 * @return 	{number} - random ID
+	 */
 	getId() {
 		return this.id
 	}

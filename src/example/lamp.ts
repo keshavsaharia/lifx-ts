@@ -18,14 +18,8 @@ async function main() {
 	})
 
 	lifx.onLoad(async (device) => {
-		const name = device.getDeviceLabel()
-		for (let i = 0 ; i < 20 ; i++) {
-			if (Math.random() < 0.5)
-				device.turnOff()
-			else
-				device.turnOn()
-		}
-
+		console.log(device.getState())
+		await device.turnOff()
 	})
 }
 
