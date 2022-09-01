@@ -413,8 +413,10 @@ export default class LifxDevice {
 	}
 
 	hasFeature(key: string) {
-		if (LIFX_FEATURES.includes(key))
-			return this.product && this.product.features.hasOwnProperty(key)
+		// Filter if the product is set
+		if (this.product && LIFX_FEATURES.includes(key))
+			return this.product.features.hasOwnProperty(key)
+		// Only keys for updating the state
 		return LIFX_STATE_KEYS.includes(key)
 	}
 
@@ -462,9 +464,8 @@ export default class LifxDevice {
 	}
 
 	monitor(keys?: Array<string> | string) {
-		if (keys) {
-
-		}
+		this.watch(keys || LIFX_STATE_KEYS, DEFAULT_INTERVAL)
+		return this
 	}
 
 	/**
@@ -477,8 +478,11 @@ export default class LifxDevice {
 			return this
 		}
 
-		let update: (() => any) | undefined
+		// Ignore features that are not on this device
+		if (! this.hasFeature(key)) return
 
+		// Map key to watcher function
+		let update: (() => any) | undefined
 		if (key === 'power') update = () => this.getPower()
 		else if (key === 'light') update = () => this.getLight()
 		else if (key === 'color') update = () => this.getColor()
@@ -541,6 +545,15 @@ export default class LifxDevice {
 		return state
 	}
 
+	/**
+	 * @func 	reactive
+	 * @desc 	Async wrapper for transmissions that produce a response. Waits until
+	 * 			the source function has produced a result, then emits events if the
+	 * 			result is a new value for the given key.
+	 * @param 	{string} key - key that is set by result of source function
+	 * @param 	{Function} source - a function that produces a `Promise`
+	 * @returns {Promise<Result>}
+	 */
 	private async reactive<Result>(key: string, source: () => Promise<Result>): Promise<Result> {
 		if (! this.hasFeature(key))
 			throw DeviceFeatureError
@@ -551,10 +564,12 @@ export default class LifxDevice {
 			if (result != null && ! objectEqual(device[key], result)) {
 				device[key] = result
 				this.state[key] = result
+
+				// Emit to device listeners
 				this.emit('change', this.state)
 				this.emit(key, result)
 
-				// Emit to client events
+				// Emit to client listeners
 				this.client.emit('change', this)
 				this.client.emit('change_' + key, this)
 			}
