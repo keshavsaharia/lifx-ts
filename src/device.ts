@@ -38,11 +38,14 @@ import {
 	LightPower,
 	LightInfrared,
 	LifxProduct,
-	LifxDeviceHandler
+	LifxDeviceHandler,
+	LifxStateHandler,
+	DeviceState
 } from './interface'
 
 import {
 	RGBtoHSB,
+	CSStoHSB,
 	objectEqual
 } from './util'
 
@@ -52,14 +55,21 @@ import {
 	LIFX_PORT,
 	LIFX_PRODUCT,
 	LIFX_STATE_KEYS,
-	RATE_LIMIT
+	LIFX_FEATURES,
+	RATE_LIMIT,
+	DEFAULT_TEMPERATURE
 } from './constant'
+
+import {
+	DeviceFeatureError
+} from './error'
 
 export default class LifxDevice {
 	private client: LifxClient
 	private ip: string
 	private mac: string
 	private port: number
+	private alive: boolean
 
 	firmware?: DeviceFirmware
 	version?: DeviceVersion
@@ -74,7 +84,7 @@ export default class LifxDevice {
 	product?: LifxProduct
 
 	// Event handlers and state watchers
-	handler: { [event: string]: Array<LifxDeviceHandler> }
+	handler: { [event: string]: Array<LifxStateHandler<any>> }
 	watcher: { [key: string]: NodeJS.Timer }
 	updated: { [key: string]: number }
 
@@ -83,7 +93,7 @@ export default class LifxDevice {
 
 	// Caches a JSON representation of the device state, so updates
 	// are triggered when any part of this object changes
-	state: { [key: string]: any }
+	state: DeviceState
 
 	/**
 	 * @constructor
@@ -93,6 +103,7 @@ export default class LifxDevice {
 		this.ip = ip
 		this.mac = mac
 		this.port = port || LIFX_PORT
+		this.alive = true
 		this.handler = {}
 		this.watcher = {}
 		this.updated = {}
@@ -142,14 +153,11 @@ export default class LifxDevice {
 	}
 
 	remove() {
+		this.alive = false
 		return this.client.removeDevice(this)
 	}
 
-	stop() {
-		this.stopAllWatchers()
-	}
-
-	onChange(handler: LifxDeviceHandler) {
+	onChange(handler: LifxStateHandler<DeviceState>) {
 		return this.on('change', handler)
 	}
 
@@ -172,15 +180,13 @@ export default class LifxDevice {
 	}
 
 	async getFirmware() {
-		return this.reactiveGet('firmware', async () => this.get(new DeviceGetFirmware()))
+		return this.reactive('firmware', async () => this.get(new DeviceGetFirmware()))
 	}
 
 	async getVersion() {
-		await this.reactiveGet('version', async () => await this.get(new DeviceGetVersion()))
-
-		if (this.version)
-			this.product = LIFX_PRODUCT[this.version.product]
-		return this.version
+		const version = await this.reactive('version', async () => await this.get(new DeviceGetVersion()))
+		this.loadProduct()
+		return version
 	}
 
 	async echo(text: string) {
@@ -191,23 +197,38 @@ export default class LifxDevice {
 
 	async reboot() {
 		await this.send(new DeviceRebootPacket())
+		this.remove()
 		return this
+	}
+
+	async setCSS(css: string) {
+		return this.setColor({
+			...CSStoHSB(css),
+			kelvin: this.getTemperature()
+		})
 	}
 
 	async setRGB(r: number, g: number, b: number, a?: number) {
 		return this.setColor({
 			...RGBtoHSB(r, g, b, a),
-			kelvin: this.color ? this.color.kelvin :
-				((this.product && this.product.temperature) ? this.product.temperature.min : 3500)
+			kelvin: this.getTemperature()
 		})
 	}
 
 	async setColor(color: LightColor, duration?: number) {
-		return this.reactiveGet('color', () => this.get(new LightSetColor(color, duration)))
+		return this.reactive('color', () => this.get(new LightSetColor(color, duration)))
 	}
 
 	async getColor() {
-		return this.reactiveGet('color', () => this.get(new LightGetColor()))
+		return this.reactive('color', () => this.get(new LightGetColor()))
+	}
+
+	onColor(handler: LifxStateHandler<LightColor>) {
+		return this.on('color', handler)
+	}
+
+	watchColor(interval?: number) {
+		return this.watch('color', interval || DEFAULT_INTERVAL)
 	}
 
 	async setTemperature(kelvin: number) {
@@ -226,14 +247,14 @@ export default class LifxDevice {
 	}
 
 	async setGroup(id: string, label: string) {
-		return this.reactiveGet('group', () => this.get(new DeviceSetGroup(id, label)))
+		return this.reactive('group', () => this.get(new DeviceSetGroup(id, label)))
 	}
 
 	async getGroup() {
-		return this.reactiveGet('group', () => this.get(new DeviceGetGroup()))
+		return this.reactive('group', () => this.get(new DeviceGetGroup()))
 	}
 
-	onGroup(handler: LifxDeviceHandler) {
+	onGroup(handler: LifxStateHandler<DeviceGroup>) {
 		return this.on('group', handler)
 	}
 
@@ -242,14 +263,14 @@ export default class LifxDevice {
 	}
 
 	async setLocation(id: string, label: string) {
-		return this.reactiveGet('location', () => this.get(new DeviceSetLocation(id, label)))
+		return this.reactive('location', () => this.get(new DeviceSetLocation(id, label)))
 	}
 
 	async getLocation() {
-		return this.reactiveGet('location', () => this.get(new DeviceGetLocation()))
+		return this.reactive('location', () => this.get(new DeviceGetLocation()))
 	}
 
-	onLocation(handler: LifxDeviceHandler) {
+	onLocation(handler: LifxStateHandler<DeviceGroup>) {
 		return this.on('location', handler)
 	}
 
@@ -258,14 +279,14 @@ export default class LifxDevice {
 	}
 
 	async setInfrared(brightness: number) {
-		return this.reactiveGet('infrared', () => this.get(new LightSetInfrared(brightness)))
+		return this.reactive('infrared', () => this.get(new LightSetInfrared(brightness)))
 	}
 
 	async getInfrared() {
-		return this.reactiveGet('infrared', () => this.get(new LightGetInfrared()))
+		return this.reactive('infrared', () => this.get(new LightGetInfrared()))
 	}
 
-	onInfrared(handler: LifxDeviceHandler) {
+	onInfrared(handler: LifxStateHandler<LightInfrared>) {
 		return this.on('infrared', handler)
 	}
 
@@ -274,14 +295,14 @@ export default class LifxDevice {
 	}
 
 	async setPower(on: boolean) {
-		return this.reactiveGet('power', () => this.get(new DeviceSetPower(on)))
+		return this.reactive('power', () => this.get(new DeviceSetPower(on)))
 	}
 
 	async getPower() {
-		return this.reactiveGet('power', () => this.get(new DeviceGetPower()))
+		return this.reactive('power', () => this.get(new DeviceGetPower()))
 	}
 
-	onPower(handler: LifxDeviceHandler) {
+	onPower(handler: LifxStateHandler<DevicePower>) {
 		return this.on('power', handler)
 	}
 
@@ -298,14 +319,14 @@ export default class LifxDevice {
 	}
 
 	async setLight(on: boolean, duration?: number) {
-		return this.reactiveGet('light', () => this.get(new LightSetPower(on, duration)))
+		return this.reactive('light', () => this.get(new LightSetPower(on, duration)))
 	}
 
 	async getLight() {
-		return this.reactiveGet('light', () => this.get(new LightGetPower()))
+		return this.reactive('light', () => this.get(new LightGetPower()))
 	}
 
-	onLight(handler: LifxDeviceHandler) {
+	onLight(handler: LifxStateHandler<LightPower>) {
 		return this.on('light', handler)
 	}
 
@@ -322,10 +343,10 @@ export default class LifxDevice {
 	}
 
 	async getInfo() {
-		return this.reactiveGet('info', () => this.get(new DeviceGetInfo()))
+		return this.reactive('info', () => this.get(new DeviceGetInfo()))
 	}
 
-	onInfo(handler: LifxDeviceHandler) {
+	onInfo(handler: LifxStateHandler<DeviceInfo>) {
 		return this.on('info', handler)
 	}
 
@@ -334,14 +355,14 @@ export default class LifxDevice {
 	}
 
 	async setLabel(label: string) {
-		return this.reactiveGet('label', () => this.get(new DeviceSetLabel(label)))
+		return this.reactive('label', () => this.get(new DeviceSetLabel(label)))
 	}
 
 	async getLabel() {
-		return this.reactiveGet('label', () => this.get(new DeviceGetLabel()))
+		return this.reactive('label', () => this.get(new DeviceGetLabel()))
 	}
 
-	onLabel(handler: LifxDeviceHandler) {
+	onLabel(handler: LifxStateHandler<DeviceLabel>) {
 		return this.on('label', handler)
 	}
 
@@ -391,25 +412,44 @@ export default class LifxDevice {
 		return this.port
 	}
 
+	hasFeature(key: string) {
+		if (LIFX_FEATURES.includes(key))
+			return this.product && this.product.features.hasOwnProperty(key)
+		return LIFX_STATE_KEYS.includes(key)
+	}
 
-	getTemperatureRange(): Array<number> | undefined {
+	getTemperature() {
+		if (this.color)
+			return this.color.kelvin
+		// Start at middle of temperature range
+		if (this.product && this.product.temperature)
+			return (this.product.temperature.max + this.product.temperature.min) / 2
+		// Default temperature
+		return DEFAULT_TEMPERATURE
+	}
+
+	hasTemperature() {
+		return this.product && this.product.temperature != null
+	}
+
+	getTemperatureRange(): { min: number, max: number } | undefined {
 		if (this.product)
-			return this.product.features.temperature_range
+			return this.product.temperature
 	}
 
 	getMinTemperature(): number {
-		if (this.product && this.product.features.temperature_range)
-			return this.product.features.temperature_range[0]
-		return 2700
+		if (this.product && this.product.temperature)
+			return this.product.temperature.min
+		return DEFAULT_TEMPERATURE
 	}
 
 	getMaxTemperature(): number {
-		if (this.product && this.product.features.temperature_range)
-			return this.product.features.temperature_range[1]
-		return 2700
+		if (this.product && this.product.temperature)
+			return this.product.temperature.max
+		return DEFAULT_TEMPERATURE
 	}
 
-	on(event: string, handler: LifxDeviceHandler) {
+	on<R>(event: string, handler: LifxStateHandler<R>) {
 		if (! this.handler[event])
 			this.handler[event] = []
 		this.handler[event].push(handler)
@@ -421,11 +461,22 @@ export default class LifxDevice {
 		return this
 	}
 
+	monitor(keys?: Array<string> | string) {
+		if (keys) {
+
+		}
+	}
+
 	/**
 	 * @func 	watch
 	 * @desc 	Send periodic requests to the device for the latest state
 	 */
-	watch(key: string, interval: number) {
+	private watch(key: Array<string> | string, interval: number) {
+		if (Array.isArray(key)) {
+			key.forEach((k) => this.watch(key, interval))
+			return this
+		}
+
 		let update: (() => any) | undefined
 
 		if (key === 'power') update = () => this.getPower()
@@ -436,6 +487,7 @@ export default class LifxDevice {
 		else if (key === 'location') update = () => this.getLocation()
 		else if (key === 'label') update = () => this.getLabel()
 		else if (key === 'info') update = () => this.getInfo()
+		else if (key === 'firmware') update = () => this.getFirmware()
 
 		if (update)
 			return this.addWatcher(key, interval, update.bind(this))
@@ -457,21 +509,26 @@ export default class LifxDevice {
 		return this
 	}
 
-	private stopAllWatchers() {
+	stopMonitoring() {
 		Object.keys(this.watcher).forEach((key) => {
 			clearInterval(this.watcher[key])
 		})
 		this.watcher = {}
 	}
 
-	emit(event: string) {
+	emit<R>(event: string, result?: R) {
 		if (this.handler[event])
-			this.handler[event].forEach((handler) => handler(this))
+			this.handler[event].forEach((handler) => {
+				if (result)
+					(handler as LifxStateHandler<R>)(result, this)
+				else
+					(handler as LifxStateHandler<DeviceState>)(this.state, this)
+			})
 	}
 
-	getState(): { [key: string]: any } {
-		const device: { [key: string]: any } = this
-		const state: { [key: string]: any } = {
+	getState(): DeviceState {
+		const device: DeviceState = this
+		const state: DeviceState = {
 			ip: this.ip,
 			mac: this.mac,
 			port: this.port,
@@ -484,16 +541,20 @@ export default class LifxDevice {
 		return state
 	}
 
-	private async reactiveGet<Result>(key: string, source: () => Promise<Result>): Promise<Result> {
-		const device: { [key: string]: any } = this
+	private async reactive<Result>(key: string, source: () => Promise<Result>): Promise<Result> {
+		if (! this.hasFeature(key))
+			throw DeviceFeatureError
+
+		const device: DeviceState = this
 		try {
 			const result = await source.bind(this)()
-
 			if (result != null && ! objectEqual(device[key], result)) {
 				device[key] = result
 				this.state[key] = result
-				this.emit('change')
-				this.emit(key)
+				this.emit('change', this.state)
+				this.emit(key, result)
+
+				// Emit to client events
 				this.client.emit('change', this)
 				this.client.emit('change_' + key, this)
 			}
@@ -515,7 +576,7 @@ export default class LifxDevice {
 		return this
 	}
 
-	getDeviceLabel(): string {
+	getName(): string {
 		if (this.label)
 			return this.label.label
 		return ''
@@ -545,7 +606,27 @@ export default class LifxDevice {
 		return this.location.id === ((typeof location === 'string') ? location : location.id)
 	}
 
-	canSend(rateLimit?: number) {
+	/**
+	 * @func 	loadProduct
+	 * @desc 	Loads the product information for this device from the data provided by Lifx.
+	 * @see 	data/products.json
+	 */
+	private loadProduct() {
+		if (this.version)
+			this.product = LIFX_PRODUCT[this.version.product]
+		return this
+	}
+
+	/**
+	 * @func 	canSend
+	 * @desc 	Returns true if the device has not received a message in the given amount of time.
+	 * 			If this function returns true, a subsequent invocation within the rate limit duration
+	 * 			will return false.
+	 * @see 	dequeue() in client.ts
+	 * @param 	{number} rateLimit - optional limit (default is 50)
+	 * @return 	{boolean} message can be sent
+	 */
+	canSend(rateLimit?: number): boolean {
 		const now = Date.now()
 
 		// Message has not been sent yet, or within threshold
@@ -558,6 +639,7 @@ export default class LifxDevice {
 	}
 
 	toString() {
-		return JSON.stringify(this.getState(), null, 4)
+		const str = [this.getName(), ' (', this.getIP(), ', ', this.getMacAddress(), ')']
+		return str.join('')
 	}
 }

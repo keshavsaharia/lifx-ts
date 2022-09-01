@@ -39,10 +39,12 @@ export const LIFX_ORIGIN = 0
 export const LIFX_UDP_SERVICE = 1
 
 export const LIFX_STATE_KEYS = ['firmware', 'version', 'info', 'label', 'group', 'location', 'power', 'light', 'color', 'infrared']
+export const LIFX_FEATURES = ['hev', 'color', 'infrared', 'chain', 'matrix', 'relays', 'buttons', 'multizone', 'extended_multizone']
 
 export const PING_TIMEOUT = 3000
 export const DEFAULT_TIMEOUT = 3000
 export const DEFAULT_INTERVAL = 5000
 export const RATE_LIMIT = 50
+export const DEFAULT_TEMPERATURE = 2700
 
 export const BROADCAST_TARGET = '00:00:00:00:00:00'

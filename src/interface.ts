@@ -3,10 +3,12 @@ import {
 	LifxDevice
 } from '.'
 
+export type DeviceState = { [key: string]: any }
 export type ResultObject = { [key: string]: any }
 
 export type ResponseHandler<Result> = (response: Response, payload: Result) => any
 export type LifxDeviceHandler = (device: LifxDevice) => any
+export type LifxStateHandler<Result> = (result: Result, device: LifxDevice) => any
 
 export interface LifxVendor {
 	vid: number

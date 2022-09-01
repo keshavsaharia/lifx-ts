@@ -33,3 +33,5 @@ export const ResponseLengthError = error('response_length')
 
 export const DeviceRequestError = error('device_request', 'The device response did not match the device information.')
 export const DeviceTimeoutError = error('device_timeout')
+export const DeviceFeatureError = (feature: string) =>
+	error('device_feature', 'The device does not have the "' + feature + '" feature.')

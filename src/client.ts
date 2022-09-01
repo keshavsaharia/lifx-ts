@@ -119,7 +119,7 @@ export default class LifxClient {
 
 		// Stop monitoring intervals
 		this.stopMonitoring()
-		await Promise.all(this.devices.map((device) => device.stop()))
+		await Promise.all(this.devices.map((device) => device.stopMonitoring()))
 
 		if (this.udp && ! this.alive) {
 			this.udp.unref()
@@ -272,7 +272,7 @@ export default class LifxClient {
 		return this
 	}
 
-	emit(event: string, device: LifxDevice) {
+	emit<Result>(event: string, device: LifxDevice) {
 		if (this.handler[event])
 			this.handler[event].forEach((handler) => {
 				try {
@@ -320,7 +320,7 @@ export default class LifxClient {
 				this.clearPacket(packet, transmission)
 				reject({
 					...DeviceTimeoutError,
-					label: device.getDeviceLabel(),
+					label: device.getName(),
 					ip: device.getIP(),
 					mac: device.getMacAddress()
 				})
