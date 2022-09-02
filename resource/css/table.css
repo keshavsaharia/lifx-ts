@@ -1,0 +1,63 @@
+table {
+	width: 100%;
+	text-indent: 0;
+    border-color: inherit;
+    border-collapse: collapse;
+	background: #ffffff;
+	border-radius: 5px;
+}
+
+table > thead {
+	background: #f7f7f7;
+}
+table > thead > tr {
+
+}
+table > thead > tr > th {
+	padding: 10px 15px;
+	font-size: 18px;
+	text-align: left;
+}
+table > tbody {
+
+}
+table > tbody > tr {
+
+}
+table > tbody > tr:hover {
+	cursor: pointer;
+	background: #f0f0f0;
+}
+table > tbody > tr > td {
+	padding: 5px 15px;
+}
+
+table > tbody p {
+	font-size: 14px;
+	margin: 0;
+}
+table > tbody p.name,
+table > tbody p.ip {
+	font-size: 18px;
+	margin-bottom: 5px;
+	font-weight: bold;
+}
+table > tbody p.name {
+}
+table > tbody p.name > a {
+	color: #336699;
+	text-decoration: none;
+}
+table > tbody p.ip {
+	color: #4f4f4f;
+}
+table > tbody p.mac {
+	color: #7f7f7f;
+	font-size: 12px;
+}
+table > tbody p.product {
+	font-size: 14px;
+}
+table > tbody p > a {
+
+}

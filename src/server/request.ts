@@ -1,5 +1,6 @@
 import {
 	LifxClient,
+	LifxDevice,
 	DeviceSetPower
 } from '..'
 
@@ -23,7 +24,6 @@ export default class Request {
 	method: string
 	path: Array<string>
 	query: qs.ParsedUrlQuery
-	json?: boolean
 
 	constructor(client: LifxClient, request: http.IncomingMessage, response: http.ServerResponse) {
 		this.client = client
@@ -33,9 +33,7 @@ export default class Request {
 	}
 
 	async respond() {
-		this.parseMethod()
-		this.parseUrl()
-		this.parseQuery()
+		this.parseRequest()
 
 		if (this.isGet())
 			return this.respondToGet()
@@ -54,9 +52,18 @@ export default class Request {
 		return this
 	}
 
+	private json(data: any): Request {
+		this.responded = true
+		this.response.writeHead(200, {
+			'Content-Type': 'application/json'
+		})
+		this.response.end(JSON.stringify(data))
+		return this
+	}
+
 	private redirect(redirect: string) {
 		this.responded = true
-		this.response.writeHead(302, {
+		this.response.writeHead(303, {
 			location: redirect
 		})
 		this.response.end()
@@ -109,23 +116,29 @@ export default class Request {
 		else if (resource === 'device') {
 			const deviceId = this.shiftPath()
 
-			if (deviceId) {
+			if (deviceId && this.client.hasDevice(deviceId)) {
 				const device = this.client.getDevice(deviceId)
-				const deviceKey = this.shiftPath()
-				console.log('data', data)
+				const key = this.shiftPath()
 
-				if (device && deviceKey) {
-					if (deviceKey === 'power') {
-						await device.setPower(data.on === 'on')
-						console.log(device.power)
-					}
-
-					return this.redirect('/device/' + deviceId)
+				if (key) {
+					return this.respondToDevicePost(device, key, data)
 				}
 				else throw {}
 			}
 			else throw {}
 		}
+	}
+
+	private async respondToDevicePost(device: LifxDevice, key: string, data: { [key: string]: any }) {
+		let result: any = null
+		console.log('post', data)
+		if (key === 'power') {
+			result = await device.setPower(data.on === 'true')
+		}
+		if (result && this.query.json)
+			return this.json(result)
+		else
+			return this.redirect('/device/' + device.getMacAddress())
 	}
 
 	private async getData() {
@@ -145,29 +158,22 @@ export default class Request {
 		})
 	}
 
-	private parseMethod() {
+	private parseRequest() {
+		// Parse request method
 		if (! this.request.method)
 			throw {}
 		this.method = this.request.method.toLowerCase()
-	}
 
-	private parseUrl() {
+		// Parse request URL
 		if (! this.request.url)
 			throw {}
-
 		const req = url.parse(this.request.url)
 		if (! req.pathname)
 			throw {}
 		this.path = req.pathname.split('/').filter((p) => p.length > 0)
-	}
 
-	private parseQuery() {
-		if (! this.request.url)
-			throw {}
-		this.query = qs.parse(this.request.url)
-
-		if (this.query.json !== 'false')
-			this.json = true
+		// Parse request query
+		this.query = req.query ? qs.parse(req.query) : {}
 	}
 
 	private shiftPath() {

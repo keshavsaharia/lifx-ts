@@ -217,7 +217,7 @@ export default class LifxDevice {
 	}
 
 	async setColor(color: LightColor, duration?: number) {
-		return this.reactive('color', () => this.get(new LightSetColor(color, duration)), true)
+		return this.reactiveSet('color', color, () => this.get(new LightSetColor(color, duration)))
 	}
 
 	async getColor() {
@@ -248,7 +248,8 @@ export default class LifxDevice {
 	}
 
 	async setGroup(id: string, label: string) {
-		return this.reactive('group', () => this.get(new DeviceSetGroup(id, label)), true)
+		const group = { id, label, updated: Date.now() }
+		return this.reactiveSet('group', group, () => this.get(new DeviceSetGroup(id, label)))
 	}
 
 	async getGroup() {
@@ -264,7 +265,8 @@ export default class LifxDevice {
 	}
 
 	async setLocation(id: string, label: string) {
-		return this.reactive('location', () => this.get(new DeviceSetLocation(id, label)), true)
+		const location = { id, label, updated: Date.now() }
+		return this.reactiveSet('location', location, () => this.get(new DeviceSetLocation(id, label)))
 	}
 
 	async getLocation() {
@@ -280,7 +282,7 @@ export default class LifxDevice {
 	}
 
 	async setInfrared(brightness: number) {
-		return this.reactive('infrared', () => this.get(new LightSetInfrared(brightness)), true)
+		return this.reactiveSet('infrared', { brightness }, () => this.get(new LightSetInfrared(brightness)))
 	}
 
 	async getInfrared() {
@@ -296,7 +298,7 @@ export default class LifxDevice {
 	}
 
 	async setPower(on: boolean) {
-		return this.reactive('power', () => this.get(new DeviceSetPower(on)), true)
+		return this.reactiveSet('power', { on }, () => this.get(new DeviceSetPower(on)))
 	}
 
 	async getPower() {
@@ -320,7 +322,7 @@ export default class LifxDevice {
 	}
 
 	async setLight(on: boolean, duration?: number) {
-		return this.reactive('light', () => this.get(new LightSetPower(on, duration)), true)
+		return this.reactive('light', () => this.get(new LightSetPower(on, duration)))
 	}
 
 	async getLight() {
@@ -356,7 +358,7 @@ export default class LifxDevice {
 	}
 
 	async setLabel(label: string) {
-		return this.reactive('label', () => this.get(new DeviceSetLabel(label)), true)
+		return this.reactive('label', () => this.get(new DeviceSetLabel(label)))
 	}
 
 	async getLabel() {
@@ -558,15 +560,15 @@ export default class LifxDevice {
 	}
 
 	/**
-	 * @func 	reactive
-	 * @desc 	Async wrapper for transmissions that produce a response. Waits until
-	 * 			the source function has produced a result, then emits events if the
-	 * 			result is a new value for the given key.
+	 * @func 	reactiveSet
+	 * @desc 	Async wrapper for transmissions that update a device value. Waits until
+	 * 			the source function has produced a result and fires events
+	 * 			with the new value.
 	 * @param 	{string} key - key that is set by result of source function
 	 * @param 	{Function} source - a function that produces a `Promise`
 	 * @returns {Promise<Result>}
 	 */
-	private async reactive<Result>(key: string, source: () => Promise<Result>, set?: boolean): Promise<Result> {
+	private async reactiveSet<Result>(key: string, value: Result, source: () => Promise<Result>): Promise<Result> {
 		if (! this.hasFeature(key))
 			throw DeviceFeatureError
 
@@ -575,9 +577,53 @@ export default class LifxDevice {
 
 		try {
 			const result: Result = await source.bind(this)()
-			if (result != null && (set || ! objectEqual(device[key], result))) {
+
+			if (result != null) {
+				device[key] = state[key] = value
+				this.emit('change', this)
+				this.emit(key, value)
+			}
+
+			// Emit to client listeners
+			this.client.emit('change', this)
+			this.client.emit('change_' + key, this)
+
+			return value
+		}
+		catch (error) {
+			// Disconnect the device if the request timed out
+			if (error.code === 'device_timeout')
+				this.remove()
+			// Return new value
+			return value
+		}
+	}
+
+	/**
+	 * @func 	reactive
+	 * @desc 	Async wrapper for transmissions that produce a response. Waits until
+	 * 			the source function has produced a result, then emits events if the
+	 * 			result is a new value for the given key.
+	 * @param 	{string} key - key that is set by result of source function
+	 * @param 	{Function} source - a function that produces a `Promise`
+	 * @returns {Promise<Result>}
+	 */
+	private async reactive<Result>(key: string, source: () => Promise<Result>): Promise<Result> {
+		if (! this.hasFeature(key))
+			throw DeviceFeatureError
+
+		const device: ResultObject = this
+		const state: ResultObject = this.state
+
+		try {
+			const result: Result = await source.bind(this)()
+			console.log('result', result)
+			if (result != null && ! objectEqual(device[key], result)) {
+				console.log('setting', key)
 				device[key] = result
 				state[key] = result
+
+				console.log('set', device[key])
 
 				// Emit to device listeners
 				this.emit('change', this)

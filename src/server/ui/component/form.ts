@@ -1,3 +1,5 @@
+import qs from 'querystring'
+
 import {
 	UIElement
 } from '..'
@@ -8,10 +10,10 @@ import {
 } from '../../../interface'
 
 interface FormOption<Result> {
+	key?: string
 	state?: Result
 	auto?: boolean
 	device?: DeviceState
-	key?: string
 	input?: Array<FormInput>
 }
 
@@ -45,19 +47,36 @@ export default class UIForm<Result extends ResultObject> extends UIElement {
 		if (! this.option.input)
 			return
 
+		this.addAttr('onclick', 'event.stopPropagation()')
+
 		this.option.input.forEach((schema) => {
 			const container = this.addNew().addClass('field')
 
-			const label = container.addNew('label')
-			label.add(schema.label || schema.key)
+			if (schema.label) {
+				const label = container.addNew('label')
+				label.add(schema.label)
+			}
 
 			const input = container.addNew('input')
 			input.addAttr('type', schema.type)
 			input.addAttr('name', schema.key)
+			// input.addAttr('onclick', 'event.stopPropagation()')
 
 			if (this.state) {
-				if (schema.type === 'checkbox') {
-					if (this.state[schema.key] === true)
+				const value = this.state[schema.key]
+				if (schema.type === 'text') {
+					if (value != null && typeof value === 'string')
+						input.addAttr('value', value)
+				}
+				else if (schema.type === 'checkbox') {
+					container.addClass('switch')
+					container.addNew('span').addClass('slider')
+						.addAttr('onclick', 'event.stopPropagation();this.previousSibling.checked=!this.previousSibling.checked')
+
+					if (this.option.auto)
+						input.addAttr('onchange', 'this.form.submit()')
+					input.addAttr('value', 'true')
+					if (value === true)
 						input.addAttr('checked')
 				}
 			}

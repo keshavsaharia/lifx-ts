@@ -1,6 +1,6 @@
 export default class UIElement {
 	tag: string
-	cls?: Array<string>
+	cls?: Set<string>
 	style?: { [prop: string]: string | number }
 	attr?: { [key: string]: string | null }
 	child?: Array<UIElement | string>
@@ -27,11 +27,11 @@ export default class UIElement {
 
 	addClass(cls: Array<string> | string) {
 		if (! this.cls)
-			this.cls = []
+			this.cls = new Set<string>()
 		if (Array.isArray(cls))
-			this.cls.push.apply(this.cls, cls)
+			this.cls.forEach((c) => this.cls!.add(c))
 		else
-			this.cls.push(cls)
+			this.cls.add(cls)
 		return this
 	}
 
@@ -51,6 +51,14 @@ export default class UIElement {
 
 	render(): string {
 		const html = ['<', this.tag]
+		if (this.cls)
+			html.push(' class="', Array.from(this.cls).join(' '), '"')
+		if (this.style)
+			html.push(' style="',
+				Object.keys(this.style).map((prop) => {
+					const value = this.style![prop]
+					return [ prop, (typeof value === 'number') ? (value + 'px') : value ].join(':')
+				}).join(';'), '"')
 		if (this.attr)
 			Object.keys(this.attr).forEach((key) => {
 				const value = this.attr![key]
