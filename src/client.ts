@@ -1,10 +1,12 @@
 import dgram from 'dgram'
 
 import {
-	Packet,
+	LifxServer,
 	LifxDevice,
+	Packet,
 	Response,
-	DeviceDiscover
+	DeviceDiscover,
+	ClientLogEmitter
 } from '.'
 
 import {
@@ -43,6 +45,9 @@ export default class LifxClient {
 	// Unique ID
 	private id: number
 
+	// UI/API/admin server
+	private server?: LifxServer
+
 	// Devices and mapping
 	private devices: Array<LifxDevice>
 	private device: { [mac: string]: LifxDevice }
@@ -65,6 +70,9 @@ export default class LifxClient {
 	// Event handler
 	private handler: { [event: string]: Array<LifxDeviceHandler> }
 
+	// Logging configuration
+	log: ClientLogEmitter
+
 	/**
 	 * @constructor
 	 * @desc 	Initializes a client instance for communicating with Lifx devices.
@@ -74,6 +82,7 @@ export default class LifxClient {
 	constructor() {
 		// Unique client ID
 		this.id = Math.floor(Math.random() * 0xffffffff)
+		this.log = new ClientLogEmitter(this)
 
 		// Sequenced request cache
 		this.request = {}
@@ -100,9 +109,11 @@ export default class LifxClient {
 			return this
 
 		// If the socket is successfully created, set the "alive" flag to true
+		this.log.starting()
 		this.port = port || LIFX_PORT
 		this.udp = await createSocket(this.port, this.receivePacket.bind(this))
 		this.alive = true
+		this.log.start()
 
 		// Listen to shutdown signals and close the socket
 		process.on('SIGTERM', () => this.stop())
@@ -111,13 +122,28 @@ export default class LifxClient {
 		return this
 	}
 
+	async startServer() {
+		if (! this.server) {
+			this.server = new LifxServer(this)
+			await this.server.start()
+		}
+		return this
+	}
+
 	/**
 	 * @func 	stop
 	 * @desc 	Stops the UDP socket and any periodic monitors.
+	 * @returns {Promise<boolean>} true if shutdown process succeeded or in progress
 	 */
 	async stop(): Promise<boolean> {
-		if (! this.udp)
+		// Ensure function is only called once
+		if (! this.udp || ! this.alive)
 			return true
+		this.alive = false
+
+		this.log.stop()
+		if (this.server)
+			await this.server.stop()
 
 		// Clear queue and dequeuing process
 		this.queue = []
@@ -128,22 +154,22 @@ export default class LifxClient {
 		this.stopMonitoring()
 		await Promise.all(this.devices.map((device) => device.stopMonitoring()))
 
-		if (this.udp && ! this.alive) {
-			this.udp.unref()
-			return true
-		}
-
+		// Close and/or unref the UDP socket
 		return new Promise((resolve: (stopped: boolean) => any) => {
 			try {
 				this.udp.close(() => {
 					this.udp.unref()
-					this.alive = false
 					resolve(true)
 				})
 			}
 			catch (error) {
-				this.alive = false
-				resolve(false)
+				try {
+					this.udp.unref()
+					resolve(true)
+				}
+				catch (e) {
+					resolve(false)
+				}
 			}
 		})
 	}
@@ -219,7 +245,7 @@ export default class LifxClient {
 			id: this.id,
 			alive: this.alive,
 			queue: this.queue.length,
-			device: this.devices.map((device) => device.getState())
+			device: this.devices.map((device) => device.state)
 		}
 	}
 
@@ -268,15 +294,13 @@ export default class LifxClient {
 		if (! this.alive)
 			return
 
+		// Get a list of all device MAC addresses that responded to the ping
 		const responses = await Promise.all(this.devices.map((device) => device.ping(timeout)))
-		const pongs = new Set<string>()
-		responses.forEach((response) => {
-			if (response != null)
-				pongs.add(response)
-		})
+		const pong = new Set<string>(responses.filter((r) => (r != null)) as Array<string>)
 
+		// Remove all devices that did not respond
 		this.devices.forEach((device) => {
-			if (! pongs.has(device.getMacAddress()))
+			if (! pong.has(device.getMacAddress()))
 				this.removeDevice(device)
 		})
 	}
@@ -524,6 +548,14 @@ export default class LifxClient {
 
 	isRunning(): boolean {
 		return this.alive
+	}
+
+	getSocket() {
+		return this.udp
+	}
+
+	getNetwork() {
+		return this.network
 	}
 
 }

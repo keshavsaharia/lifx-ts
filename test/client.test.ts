@@ -2,7 +2,7 @@ import { LifxClient } from '../src'
 
 describe('Construct live client', () => {
 
-	test('discovery', async () => {
+	test('discovery', () => {
 		new LifxClient()
 	})
 

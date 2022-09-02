@@ -20,6 +20,6 @@
 	},
 	"homepage": "https://github.com/keshavsaharia/cloudsearch-ts#readme",
 	"dependencies": {
-		"chalk": "^5.0.1"
+		"chalk": "^4.1.2"
 	}
 }
