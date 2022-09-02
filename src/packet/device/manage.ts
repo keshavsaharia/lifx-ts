@@ -11,9 +11,13 @@ export class DeviceEchoPacket extends Packet<DeviceEcho> {
 	text: string
 
 	constructor(text: string) {
-		super(59, 64)
+		super(58, 64)
 		this.willRespond()
 		this.text = text.substring(0, 64)
+	}
+
+	getName() {
+		return 'EchoRequest'
 	}
 
 	buildPayload(payload: Payload) {
@@ -36,6 +40,10 @@ export class DeviceRebootPacket extends Packet<DeviceReboot> {
 
 	constructor() {
 		super(38, 0)
+	}
+
+	getName() {
+		return 'SetReboot'
 	}
 
 	buildPayload() {}

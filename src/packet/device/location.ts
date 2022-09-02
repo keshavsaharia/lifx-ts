@@ -38,6 +38,10 @@ export class DeviceSetLocation extends DeviceGroupPacket {
 		this.label = label
 	}
 
+	getName() {
+		return 'SetLocation'
+	}
+
 	buildPayload(payload: Payload) {
 		payload.addString(this.id, 16)
 		payload.addString(this.label, 32)
@@ -49,6 +53,10 @@ export class DeviceGetLocation extends DeviceGroupPacket {
 
 	constructor() {
 		super(48, 0)
+	}
+
+	getName() {
+		return 'GetLocation'
 	}
 
 	buildPayload() {}
@@ -64,6 +72,10 @@ export class DeviceSetGroup extends DeviceGroupPacket {
 		this.label = label
 	}
 
+	getName() {
+		return 'SetGroup'
+	}
+
 	buildPayload(payload: Payload) {
 		payload.addString(this.id, 16)
 		payload.addString(this.label, 32)
@@ -76,6 +88,10 @@ export class DeviceGetGroup extends DeviceGroupPacket {
 
 	constructor() {
 		super(51, 0)
+	}
+
+	getName() {
+		return 'GetGroup'
 	}
 
 	buildPayload() {}

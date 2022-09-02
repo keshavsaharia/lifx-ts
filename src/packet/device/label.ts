@@ -29,6 +29,10 @@ export class DeviceSetLabel extends DeviceLabelPacket {
 		this.label = label.substring(0, 32)
 	}
 
+	getName() {
+		return 'SetLabel'
+	}
+
 	buildPayload(payload: Payload) {
 		payload.addString(this.label, 32)
 	}
@@ -39,6 +43,10 @@ export class DeviceGetLabel extends DeviceLabelPacket {
 
 	constructor() {
 		super(23, 0)
+	}
+
+	getName() {
+		return 'GetLabel'
 	}
 
 	buildPayload() {}

@@ -40,7 +40,8 @@ import {
 	LifxProduct,
 	LifxDeviceHandler,
 	LifxStateHandler,
-	DeviceState
+	DeviceState,
+	ResultObject
 } from './interface'
 
 import {
@@ -157,7 +158,7 @@ export default class LifxDevice {
 		return this.client.removeDevice(this)
 	}
 
-	onChange(handler: LifxStateHandler<DeviceState>) {
+	onChange(handler: LifxStateHandler<LifxDevice>) {
 		return this.on('change', handler)
 	}
 
@@ -165,7 +166,7 @@ export default class LifxDevice {
 		try {
 			return this.client.send(packet, this)
 		}
-		catch (e) {}
+		catch (error) {}
 	}
 
 	async get<R>(packet: Packet<R>, timeout?: number): Promise<R | undefined> {
@@ -458,11 +459,41 @@ export default class LifxDevice {
 		return this
 	}
 
-	off(event: string) {
-		delete this.handler[event]
+	/**
+	 * @func	off
+	 * @desc	Stop a specific handler or all handlers for the event
+	 * @param  {string} event
+	 */
+	off(event: string, handler?: LifxStateHandler<any>) {
+		const handlers = this.handler[event]
+		if (handlers && handler) {
+			const index = handlers.findIndex((h) => (h == handler))
+			if (index >= 0)
+				handlers.splice(index, 1)
+		}
+		else delete this.handler[event]
 		return this
 	}
 
+	private emit<R>(event: string, result?: R) {
+		if (this.handler[event])
+			this.handler[event].forEach((handler) => {
+				try {
+					if (result)
+						(handler as LifxStateHandler<R>)(result, this)
+					else
+						(handler as LifxStateHandler<LifxDevice>)(this, this)
+				}
+				catch (error) {
+					console.log('handler for ' + event + ' failed', error)
+				}
+			})
+	}
+
+	/**
+	 * @func	monitor
+	 * @desc
+	 */
 	monitor(keys?: Array<string> | string) {
 		this.watch(keys || LIFX_STATE_KEYS, DEFAULT_INTERVAL)
 		return this
@@ -471,15 +502,17 @@ export default class LifxDevice {
 	/**
 	 * @func 	watch
 	 * @desc 	Send periodic requests to the device for the latest state
+	 * @returns {LifxClient}
 	 */
-	private watch(key: Array<string> | string, interval: number) {
+	private watch(key: Array<string> | string, interval: number): LifxDevice {
 		if (Array.isArray(key)) {
-			key.forEach((k) => this.watch(key, interval))
+			key.forEach((k) => this.watch(k, interval))
 			return this
 		}
 
 		// Ignore features that are not on this device
-		if (! this.hasFeature(key)) return
+		if (! this.hasFeature(key))
+			return this
 
 		// Map key to watcher function
 		let update: (() => any) | undefined
@@ -498,51 +531,30 @@ export default class LifxDevice {
 		return this
 	}
 
-	private addWatcher(key: string, interval: number, update: () => Promise<any>) {
+	private addWatcher(key: string, interval: number, update: () => Promise<any>): LifxDevice {
 		this.stopWatcher(key)
 		this.watcher[key] = setInterval(() => {
-			update()
+			try {
+				update()
+			}
+			catch (error) {}
 		}, interval)
-
 		return this
 	}
 
-	private stopWatcher(key: string) {
+	private stopWatcher(key: string): LifxDevice {
 		if (this.watcher[key])
 			clearInterval(this.watcher[key])
 		return this
 	}
 
-	stopMonitoring() {
+	stopMonitoring(): LifxDevice {
 		Object.keys(this.watcher).forEach((key) => {
 			clearInterval(this.watcher[key])
 		})
 		this.watcher = {}
-	}
-
-	emit<R>(event: string, result?: R) {
-		if (this.handler[event])
-			this.handler[event].forEach((handler) => {
-				if (result)
-					(handler as LifxStateHandler<R>)(result, this)
-				else
-					(handler as LifxStateHandler<DeviceState>)(this.state, this)
-			})
-	}
-
-	getState(): DeviceState {
-		const device: DeviceState = this
-		const state: DeviceState = {
-			ip: this.ip,
-			mac: this.mac,
-			port: this.port,
-			product: this.product
-		}
-		LIFX_STATE_KEYS.forEach((key) => {
-			if (device[key])
-				state[key] = device[key]
-		})
-		return state
+		this.handler = {}
+		return this
 	}
 
 	/**
@@ -558,15 +570,17 @@ export default class LifxDevice {
 		if (! this.hasFeature(key))
 			throw DeviceFeatureError
 
-		const device: DeviceState = this
+		const device: ResultObject = this
+		const state: ResultObject = this.state
+
 		try {
-			const result = await source.bind(this)()
+			const result: Result = await source.bind(this)()
 			if (result != null && ! objectEqual(device[key], result)) {
 				device[key] = result
-				this.state[key] = result
+				state[key] = result
 
 				// Emit to device listeners
-				this.emit('change', this.state)
+				this.emit('change', this)
 				this.emit(key, result)
 
 				// Emit to client listeners
@@ -584,6 +598,27 @@ export default class LifxDevice {
 				return device[key]
 			throw error
 		}
+	}
+
+	/**
+	 * @func 	getState
+	 * @desc 	Returns a JSON object describing the full device state.
+	 * @returns {Object}
+	 */
+	getState(): DeviceState {
+		const device: ResultObject = this
+		const state: ResultObject = {
+			ip: this.ip,
+			mac: this.mac,
+			port: this.port,
+			alive: this.alive,
+			product: this.product
+		}
+		LIFX_STATE_KEYS.forEach((key) => {
+			if (device[key])
+				state[key] = device[key]
+		})
+		return state as DeviceState
 	}
 
 	private cacheState() {

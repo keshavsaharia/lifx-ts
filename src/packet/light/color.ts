@@ -43,6 +43,10 @@ export class LightSetColor extends LightColorPacket {
 		this.duration = duration || 0
 	}
 
+	getName() {
+		return 'SetColor'
+	}
+
 	buildPayload(payload: Payload) {
 		payload.addOffset(1)
 		payload.addColor(this.color)
@@ -56,6 +60,10 @@ export class LightGetColor extends LightColorPacket {
 	constructor() {
 		super(101, 0)
 		this.willRespond()
+	}
+
+	getName() {
+		return 'GetColor'
 	}
 
 	buildPayload() {}

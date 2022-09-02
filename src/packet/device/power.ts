@@ -30,6 +30,10 @@ export class DeviceSetPower extends DevicePowerPacket {
 		this.on = on
 	}
 
+	getName() {
+		return 'SetPower'
+	}
+
 	buildPayload(payload: Payload) {
 		payload.addShort(this.on ? 65535 : 0)
 	}
@@ -41,6 +45,10 @@ export class DeviceGetPower extends DevicePowerPacket {
 	constructor() {
 		super(20, 0)
 		this.willRespond()
+	}
+
+	getName() {
+		return 'GetPower'
 	}
 
 	buildPayload() {}

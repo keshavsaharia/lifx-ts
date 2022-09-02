@@ -3,8 +3,48 @@ import {
 	LifxDevice
 } from '.'
 
-export type DeviceState = { [key: string]: any }
+import {
+	DeviceFirmware,
+	DeviceVersion,
+	DeviceInfo,
+	DeviceLabel,
+	DeviceGroup,
+	DevicePower
+} from './packet/device/interface'
+
+import {
+	LightPower,
+	LightColor,
+	LightState,
+	LightInfrared,
+	HSBColor
+} from './packet/light/interface'
+
 export type ResultObject = { [key: string]: any }
+export interface DeviceState {
+	ip: string
+	mac: string
+	port: number
+	alive?: boolean
+	firmware?: DeviceFirmware
+	version?: DeviceVersion
+	info?: DeviceInfo
+	label?: DeviceLabel
+	group?: DeviceGroup
+	location?: DeviceGroup
+	power?: DevicePower
+	light?: LightPower
+	color?: LightState
+	infrared?: LightInfrared
+	product?: LifxProduct
+}
+
+export interface ClientState {
+	id: number
+	alive: boolean
+	queue?: number
+	device: Array<DeviceState>
+}
 
 export type ResponseHandler<Result> = (response: Response, payload: Result) => any
 export type LifxDeviceHandler = (device: LifxDevice) => any
@@ -63,5 +103,17 @@ export interface Transmission {
 	target: string
 }
 
-export * from './packet/device/interface'
-export  * from './packet/light/interface'
+// Export payload interfaces
+export {
+	DeviceFirmware,
+	DeviceVersion,
+	DeviceInfo,
+	DeviceLabel,
+	DeviceGroup,
+	DevicePower,
+	LightPower,
+	LightColor,
+	LightState,
+	LightInfrared,
+	HSBColor
+}

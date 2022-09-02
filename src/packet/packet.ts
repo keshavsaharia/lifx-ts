@@ -54,6 +54,11 @@ export default abstract class Packet<Result extends ResultObject> {
 	 */
 	abstract buildResponse(payload: Payload): Result | null
 
+	/**
+	 * Return the Lifx-assigned name of this packet
+	 */
+	abstract getName(): string
+
 	emitResponse(response: Response) {
 		if (this.handlers && this.handlers.length > 0) {
 			const payload = this.buildResponse(response.payload)

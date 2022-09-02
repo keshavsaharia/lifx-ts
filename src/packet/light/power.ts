@@ -32,6 +32,10 @@ export class LightSetPower extends LightPowerPacket {
 		this.duration = duration
 	}
 
+	getName() {
+		return 'SetPower'
+	}
+
 	buildPayload(payload: Payload) {
 		payload.addShort(this.on ? 65535 : 0)
 		payload.addInt(this.duration || 0)
@@ -44,6 +48,10 @@ export class LightGetPower extends LightPowerPacket {
 	constructor() {
 		super(118, 0)
 		this.willRespond()
+	}
+
+	getName() {
+		return 'GetPower'
 	}
 
 	buildPayload() {}

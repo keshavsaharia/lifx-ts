@@ -8,10 +8,16 @@ import {
 } from './interface'
 
 export class DeviceGetFirmware extends Packet<DeviceFirmware> {
+	wifi?: boolean
 
 	constructor(wifi?: boolean) {
 		super(wifi ? 18 : 14, 0)
+		this.wifi = wifi
 		this.willRespond()
+	}
+
+	getName() {
+		return this.wifi ? 'GetWifiFirmware' : 'GetFirmware'
 	}
 
 	buildPayload() {}

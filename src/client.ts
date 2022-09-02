@@ -11,7 +11,8 @@ import {
 	LifxNetworkInterface,
 	Transmission,
 	LifxDeviceHandler,
-	DeviceGroup
+	DeviceGroup,
+	ClientState
 } from './interface'
 
 import {
@@ -43,7 +44,7 @@ export default class LifxClient {
 
 	// Devices and mapping
 	private devices: Array<LifxDevice>
-	private device: { [ip: string]: LifxDevice }
+	private device: { [mac: string]: LifxDevice }
 
 	// Sequence number for mapping UDP requests to responses
 	private sequence: number
@@ -109,13 +110,14 @@ export default class LifxClient {
 		return this
 	}
 
-	async stop(): Promise<any> {
+	async stop(): Promise<boolean> {
 		if (! this.udp)
-			return
+			return true
 
 		// Clear queue and rate limit interval
 		this.queue = []
-		clearInterval(this.daemon)
+		if (this.daemon)
+			clearInterval(this.daemon)
 
 		// Stop monitoring intervals
 		this.stopMonitoring()
@@ -123,20 +125,20 @@ export default class LifxClient {
 
 		if (this.udp && ! this.alive) {
 			this.udp.unref()
-			return
+			return true
 		}
 
-		return new Promise((resolve: (c: LifxClient) => any) => {
+		return new Promise((resolve: (stopped: boolean) => any) => {
 			try {
 				this.udp.close(() => {
 					this.udp.unref()
 					this.alive = false
-					resolve(this)
+					resolve(true)
 				})
 			}
 			catch (error) {
 				this.alive = false
-				resolve(this)
+				resolve(false)
 			}
 		})
 	}
@@ -199,12 +201,21 @@ export default class LifxClient {
 			.filter((group) => group != null) as Array<DeviceGroup>
 	}
 
-	getGroup(ref: DeviceGroup | string) {
+	getGroup(ref: DeviceGroup | string): Array<LifxDevice> {
 		return this.devices.filter((device) => device.inGroup(ref))
 	}
 
-	getLocation(ref: DeviceGroup | string) {
+	getLocation(ref: DeviceGroup | string): Array<LifxDevice> {
 		return this.devices.filter((device) => device.inLocation(ref))
+	}
+
+	getState(): ClientState {
+		return {
+			id: this.id,
+			alive: this.alive,
+			queue: this.queue.length,
+			device: this.devices.map((device) => device.getState())
+		}
 	}
 
 	addDevice(device: LifxDevice): LifxDevice {
@@ -225,7 +236,7 @@ export default class LifxClient {
 
 		const device = this.devices.splice(index, 1)[0]
 		delete this.device[device.getMacAddress()]
-		device.stop()
+		device.stopMonitoring()
 		this.emit('disconnect', device)
 		return device
 	}
@@ -278,7 +289,9 @@ export default class LifxClient {
 				try {
 					handler(device)
 				}
-				catch (e) { }
+				catch (e) {
+					console.log('client handler for ' + event, e)
+				}
 			})
 	}
 

@@ -25,6 +25,10 @@ export class DeviceDiscover extends Packet<DeviceService> {
 			.willRespond()
 	}
 
+	getName() {
+		return 'GetService'
+	}
+
 	buildPayload() {
 		// No payload
 	}

@@ -33,6 +33,10 @@ export class LightSetInfrared extends LightInfraredPacket {
 		this.brightness = brightness
 	}
 
+	getName() {
+		return 'SetInfrared'
+	}
+
 	buildPayload(payload: Payload) {
 		payload.addRatio(this.brightness)
 	}
@@ -43,6 +47,10 @@ export class LightGetInfrared extends LightInfraredPacket {
 
 	constructor() {
 		super(120, 0)
+	}
+
+	getName() {
+		return 'GetInfrared'
 	}
 
 	buildPayload() {}

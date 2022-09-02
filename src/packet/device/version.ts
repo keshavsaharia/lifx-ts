@@ -14,6 +14,10 @@ export class DeviceGetVersion extends Packet<DeviceVersion> {
 		this.willRespond()
 	}
 
+	getName() {
+		return 'GetVersion'
+	}
+
 	buildPayload() {}
 
 	buildResponse(payload: Payload) {

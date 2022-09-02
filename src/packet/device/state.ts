@@ -13,6 +13,10 @@ export class DeviceGetInfo extends Packet<DeviceInfo> {
 		super(34, 0)
 	}
 
+	getName() {
+		return 'GetInfo'
+	}
+
 	buildPayload() {}
 
 	buildResponse(payload: Payload) {
