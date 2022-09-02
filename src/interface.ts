@@ -103,6 +103,13 @@ export interface Transmission {
 	target: string
 }
 
+export interface QueuedRequest {
+	transmission: Transmission
+	device: LifxDevice
+	resolve: (bytes: number) => any
+	reject: (error: any) => any
+}
+
 // Export payload interfaces
 export {
 	DeviceFirmware,

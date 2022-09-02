@@ -10,6 +10,7 @@ import {
 import {
 	LifxNetworkInterface,
 	Transmission,
+	QueuedRequest,
 	LifxDeviceHandler,
 	DeviceGroup,
 	ClientState
@@ -49,13 +50,10 @@ export default class LifxClient {
 	// Sequence number for mapping UDP requests to responses
 	private sequence: number
 	private request: { [sequence: number]: Packet<any> }
-	private queue: Array<{
-		transmission: Transmission
-		device: LifxDevice
-		resolve?: (bytes: number) => any
-		reject?: (error: any) => any
-	}>
-	private daemon: NodeJS.Timer
+
+	// Request queueing and dequeueing timer
+	private queue: Array<QueuedRequest>
+	private dequeuer: NodeJS.Timer
 
 	// Network interface and socket
 	private network: Array<LifxNetworkInterface>
@@ -101,7 +99,6 @@ export default class LifxClient {
 		// If the socket is successfully created, set the "alive" flag to true
 		this.port = port || LIFX_PORT
 		this.udp = await createSocket(this.port, this.receivePacket.bind(this))
-		this.daemon = setInterval(this.dequeue.bind(this), RATE_LIMIT)
 		this.alive = true
 
 		// Listen to shutdown signals and close the socket
@@ -111,14 +108,18 @@ export default class LifxClient {
 		return this
 	}
 
+	/**
+	 * @func 	stop
+	 * @desc 	Stops the UDP socket and any periodic monitors.
+	 */
 	async stop(): Promise<boolean> {
 		if (! this.udp)
 			return true
 
-		// Clear queue and rate limit interval
+		// Clear queue and dequeuing process
 		this.queue = []
-		if (this.daemon)
-			clearInterval(this.daemon)
+		if (this.dequeuer)
+			clearInterval(this.dequeuer)
 
 		// Stop monitoring intervals
 		this.stopMonitoring()
@@ -245,8 +246,13 @@ export default class LifxClient {
 	monitor(interval: number) {
 		this.stopMonitoring()
 		this.monitoring = setInterval(async () => {
-			await this.ping(interval)
-			await this.discover()
+			try {
+				await this.ping(interval)
+				await this.discover()
+			}
+			catch (error) {
+				// TODO: client monitoring error log
+			}
 		}, interval)
 	}
 
@@ -284,14 +290,14 @@ export default class LifxClient {
 		return this
 	}
 
-	emit<Result>(event: string, device: LifxDevice) {
+	emit(event: string, device: LifxDevice) {
 		if (this.handler[event])
 			this.handler[event].forEach((handler) => {
 				try {
 					handler(device)
 				}
 				catch (e) {
-					console.log('client handler for ' + event, e)
+					// TODO: client error log
 				}
 			})
 	}
@@ -378,7 +384,21 @@ export default class LifxClient {
 	private async unicast(transmission: Transmission, device: LifxDevice) {
 		if (device.canSend())
 			return unicast(this.udp, transmission.buffer, device.getIP(), device.getPort())
-		else return new Promise((resolve: (bytes: number) => any, reject) => {
+		else
+			return this.enqueue(transmission, device)
+	}
+
+	/**
+	 * @func 	enqueue
+	 * @desc	Add the given transmission and target device to the queue, and
+	 * 			periodically check if the device can be sent another packet.
+	 */
+	private async enqueue(transmission: Transmission, device: LifxDevice) {
+		// Start the dequeue timer if not yet started
+		if (! this.dequeuer)
+			this.dequeuer = setInterval(this.dequeue.bind(this), RATE_LIMIT)
+
+		return new Promise((resolve: (bytes: number) => any, reject) => {
 			this.queue.push({
 				transmission,
 				device,
@@ -389,7 +409,9 @@ export default class LifxClient {
 	}
 
 	/**
-	 * @desc 	Remove queued requests that can be sent by unicast.
+	 * @func 	dequeue
+	 * @desc 	Remove queued requests that can now be sent.
+	 * @see 	enqueue, this.daemon
 	 */
 	private async dequeue() {
 		// Empty queue
@@ -397,30 +419,32 @@ export default class LifxClient {
 			return
 
 		// Find enqueued messages that can be sent
-		const send = this.queue.filter((enqueued) => enqueued.device.canSend())
-		if (send.length > 0) {
-			// Remove the messages from the queue
-			send.forEach((enqueued) => {
-				const index = this.queue.findIndex((e) => (e == enqueued))
-				if (index >= 0)
-					this.queue.splice(index, 1)
-			})
+		const send: Array<QueuedRequest> = []
+		for (let i = 0 ; i < this.queue.length ; i++) {
+			const enqueued = this.queue[i]
 
-			// Send all dequeued messages
+			if (enqueued.device.canSend()) {
+				send.push(enqueued)
+				this.queue.splice(i, 1)
+				i--
+			}
+		}
+
+		// Send all dequeued messages
+		if (send.length > 0)
 			return Promise.all(send.map((enqueued) =>
 					unicast(this.udp,
 							enqueued.transmission.buffer,
 							enqueued.device.getIP(),
-							enqueued.device.getPort()).then((bytes) => {
-								if (enqueued.resolve)
-									enqueued.resolve(bytes)
-							})
-							.catch((error) => {
-								console.log('queue error', error)
-								if (enqueued.reject)
-									enqueued.reject(error)
-							})))
-		}
+							enqueued.device.getPort())
+						.then((bytes) => {
+							enqueued.resolve(bytes)
+						})
+						.catch((error) => {
+							// TODO: client error log, retry
+							enqueued.reject(error)
+							return 0
+						})))
 	}
 
 	//
@@ -487,11 +511,11 @@ export default class LifxClient {
 	 * @desc 	Get the unique ID of this client.
 	 * @return 	{number} - random ID
 	 */
-	getId() {
+	getId(): number {
 		return this.id
 	}
 
-	isRunning() {
+	isRunning(): boolean {
 		return this.alive
 	}
 

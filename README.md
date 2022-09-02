@@ -116,56 +116,109 @@ console.log(await device.getVersion())
 // }
 
 console.log(device.product)
-
+// {
+//   "pid": 44,
+//   "name": "LIFX BR30",
+//   "features": {
+// 	   "color": true,
+// 	   "temperature_range": [ 2500, 9000 ]
+//   },
+//   "upgrades": [
+// 	   {
+// 	     "major": 2,
+// 	     "minor": 80,
+// 	     "features": {
+// 		   "temperature_range": [ 1500, 9000 ]
+// 	     }
+// 	   }
+//   ]
+// }
 ```
 
+### `device.echo(text)`
 
-### `device.echo()`
+Echo some text to the device and get it as a response.
+
+```typescript
+const result = await device.echo('Hey there smart bulb!')
+console.log(result)
+// Hey there smart bulb!
+```
 
 ### `device.reboot()`
 
+Reboot the device. Will disconnect the device from the client, so needs to
+be rediscovered by another call to `discover()` or by initializing with `.monitor()`.
+
+```typescript
+await device.reboot()
+```
+
 ## Light bulb control
-
-### `device.turnOn()`
-
-Turn on the device.
-
-### `device.turnOff()`
-
-Turn off the device.
-
-### `device.getPower()`
-
-Returns the on/off power state of the device as a boolean.
-
-```typescript
-const power = await device.getPower()
-console.log(power.on) // true/false
-```
-
-### `device.fadeOn(duration)`
-
-Fade the device to on over the given duration.
-
-
-### `device.getPower()`
-
-Returns the on/off power state of the device as a boolean.
-
-```typescript
-const power = await device.getPower()
-console.log(power.on) // true/false
-```
 
 ### `device.setPower(on)`
 
-Sets the on/off power state of the device as a boolean.
+Set the power of the light on/off.
 
 ```typescript
 await device.setPower(true)
-await device.turnOn()	// equivalent
+
+// Alias for setPower(true/false)
+await device.turnOn()
+await device.turnOff()
 ```
 
+#### `device.turnOn()`
+
+Equivalent to `setPower(true)`.
+
+#### `device.turnOff()`
+
+Equivalent to `setPower(false)`.
+
+### `device.getPower()`
+
+Reads the current on/off power state of the device as a boolean.
+
+```typescript
+const power = await device.getPower()
+console.log(power.on) // true/false
+
+// Latest result stored in device.power
+console.log(device.power.on)
+```
+
+### `device.setLight(on, duration)`
+
+Same as `setPower`, but allows a `duration` (in ms) to also be set.
+
+```typescript
+await device.setLight(true, 1000)
+
+// Alias for setLight(true/false, duration)
+await device.fadeOn(500)
+await device.fadeOff(100)
+```
+
+#### `device.fadeOn(duration)`
+
+Equivalent to `setLight(true, duration)`.
+
+#### `device.fadeOff(duration)`
+
+Equivalent to `setLight(false, duration)`.
+
+### `device.getLight()`
+
+Reads the current on/off light power state of the device as a boolean.
+
+```typescript
+const light = await device.getLight()
+console.log(light.on) // true/false
+
+// Latest result stored in device.power
+console.log(device.light.on)
+```
 
 ### `device.setColor(color [, duration])`
 
@@ -174,6 +227,10 @@ Set the color of a light in HSBK.
 ### `device.setRGB(r, g, b [, a])`
 
 Set the RGB or RGBA color of a light.
+
+### `device.setCSS(css)`
+
+Set the color of the light with a CSS color, hex string, or `rgb(...)` value.
 
 ## Roadmap
 
