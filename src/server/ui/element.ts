@@ -2,7 +2,7 @@ export default class UIElement {
 	tag: string
 	cls?: Array<string>
 	style?: { [prop: string]: string | number }
-	attr?: { [key: string]: string }
+	attr?: { [key: string]: string | null }
 	child?: Array<UIElement | string>
 
 	constructor(tag?: string) {
@@ -42,10 +42,10 @@ export default class UIElement {
 		return this
 	}
 
-	addAttr(key: string, value: string) {
+	addAttr(key: string, value?: string) {
 		if (! this.attr)
 			this.attr = {}
-		this.attr[key] = value
+		this.attr[key] = value || null
 		return this
 	}
 
@@ -53,7 +53,10 @@ export default class UIElement {
 		const html = ['<', this.tag]
 		if (this.attr)
 			Object.keys(this.attr).forEach((key) => {
-				html.push(' ', key, '="', this.attr![key], '"')
+				const value = this.attr![key]
+				html.push(' ', key)
+				if (value != null)
+					html.push('="', value, '"')
 			})
 		html.push('>')
 		if (this.child)

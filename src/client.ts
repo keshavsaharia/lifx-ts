@@ -222,14 +222,26 @@ export default class LifxClient {
 		return this.devices
 	}
 
+	getDevice(mac: string): LifxDevice {
+		return this.device[mac]
+	}
+
 	getGroups(): Array<DeviceGroup> {
-		return this.devices.map((device) => device.group)
-			.filter((group) => group != null) as Array<DeviceGroup>
+		const groups: Array<DeviceGroup> = []
+		this.devices.forEach((device) => {
+			if (device.group && ! groups.find((g) => (g.id === device.group!.id)))
+				groups.push(device.group)
+		})
+		return groups
 	}
 
 	getLocations(): Array<DeviceGroup> {
-		return this.devices.map((device) => device.location)
-			.filter((group) => group != null) as Array<DeviceGroup>
+		const locations: Array<DeviceGroup> = []
+		this.devices.forEach((device) => {
+			if (device.location && ! locations.find((l) => (l.id === device.location!.id)))
+				locations.push(device.location)
+		})
+		return locations
 	}
 
 	getGroup(ref: DeviceGroup | string): Array<LifxDevice> {
@@ -295,6 +307,7 @@ export default class LifxClient {
 			return
 
 		// Get a list of all device MAC addresses that responded to the ping
+		// TODO: switch to sequential ping of devices to prevent overloading queue
 		const responses = await Promise.all(this.devices.map((device) => device.ping(timeout)))
 		const pong = new Set<string>(responses.filter((r) => (r != null)) as Array<string>)
 

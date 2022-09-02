@@ -217,7 +217,7 @@ export default class LifxDevice {
 	}
 
 	async setColor(color: LightColor, duration?: number) {
-		return this.reactive('color', () => this.get(new LightSetColor(color, duration)))
+		return this.reactive('color', () => this.get(new LightSetColor(color, duration)), true)
 	}
 
 	async getColor() {
@@ -232,7 +232,7 @@ export default class LifxDevice {
 		return this.watch('color', interval || DEFAULT_INTERVAL)
 	}
 
-	async setTemperature(kelvin: number) {
+	async setTemperature(kelvin: number, duration?: number) {
 		if (! this.product || ! this.product.temperature)
 			return
 
@@ -243,12 +243,12 @@ export default class LifxDevice {
 			await this.setColor({
 				...color,
 				kelvin
-			})
+			}, duration)
 		}
 	}
 
 	async setGroup(id: string, label: string) {
-		return this.reactive('group', () => this.get(new DeviceSetGroup(id, label)))
+		return this.reactive('group', () => this.get(new DeviceSetGroup(id, label)), true)
 	}
 
 	async getGroup() {
@@ -264,7 +264,7 @@ export default class LifxDevice {
 	}
 
 	async setLocation(id: string, label: string) {
-		return this.reactive('location', () => this.get(new DeviceSetLocation(id, label)))
+		return this.reactive('location', () => this.get(new DeviceSetLocation(id, label)), true)
 	}
 
 	async getLocation() {
@@ -280,7 +280,7 @@ export default class LifxDevice {
 	}
 
 	async setInfrared(brightness: number) {
-		return this.reactive('infrared', () => this.get(new LightSetInfrared(brightness)))
+		return this.reactive('infrared', () => this.get(new LightSetInfrared(brightness)), true)
 	}
 
 	async getInfrared() {
@@ -296,7 +296,7 @@ export default class LifxDevice {
 	}
 
 	async setPower(on: boolean) {
-		return this.reactive('power', () => this.get(new DeviceSetPower(on)))
+		return this.reactive('power', () => this.get(new DeviceSetPower(on)), true)
 	}
 
 	async getPower() {
@@ -320,7 +320,7 @@ export default class LifxDevice {
 	}
 
 	async setLight(on: boolean, duration?: number) {
-		return this.reactive('light', () => this.get(new LightSetPower(on, duration)))
+		return this.reactive('light', () => this.get(new LightSetPower(on, duration)), true)
 	}
 
 	async getLight() {
@@ -356,7 +356,7 @@ export default class LifxDevice {
 	}
 
 	async setLabel(label: string) {
-		return this.reactive('label', () => this.get(new DeviceSetLabel(label)))
+		return this.reactive('label', () => this.get(new DeviceSetLabel(label)), true)
 	}
 
 	async getLabel() {
@@ -566,7 +566,7 @@ export default class LifxDevice {
 	 * @param 	{Function} source - a function that produces a `Promise`
 	 * @returns {Promise<Result>}
 	 */
-	private async reactive<Result>(key: string, source: () => Promise<Result>): Promise<Result> {
+	private async reactive<Result>(key: string, source: () => Promise<Result>, set?: boolean): Promise<Result> {
 		if (! this.hasFeature(key))
 			throw DeviceFeatureError
 
@@ -575,7 +575,7 @@ export default class LifxDevice {
 
 		try {
 			const result: Result = await source.bind(this)()
-			if (result != null && ! objectEqual(device[key], result)) {
+			if (result != null && (set || ! objectEqual(device[key], result))) {
 				device[key] = result
 				state[key] = result
 

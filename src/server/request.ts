@@ -1,10 +1,12 @@
 import {
-	LifxClient
+	LifxClient,
+	DeviceSetPower
 } from '..'
 
 import {
 	UIElement,
 	UIHomeView,
+	UIDeviceView,
 	UIErrorView
 } from './ui'
 
@@ -16,6 +18,7 @@ export default class Request {
 	client: LifxClient
 	request: http.IncomingMessage
 	response: http.ServerResponse
+	responded: boolean
 
 	method: string
 	path: Array<string>
@@ -26,6 +29,7 @@ export default class Request {
 		this.client = client
 		this.request = request
 		this.response = response
+		this.responded = false
 	}
 
 	async respond() {
@@ -41,18 +45,29 @@ export default class Request {
 			throw {}
 	}
 
-	private async respondWith(element: UIElement) {
+	private render(element: UIElement): Request {
+		this.responded = true
 		this.response.writeHead(200, {
 			'Content-Type': 'text/html'
 		})
 		this.response.end(element.render())
+		return this
+	}
+
+	private redirect(redirect: string) {
+		this.responded = true
+		this.response.writeHead(302, {
+			location: redirect
+		})
+		this.response.end()
+		return this
 	}
 
 	private async respondToGet() {
 		const resource = this.shiftPath()
 
 		if (! resource) {
-			return this.respondWith(new UIHomeView(this.client.getState()))
+			return this.render(new UIHomeView(this.client.getState()))
 		}
 		else if (resource === 'device') {
 			const deviceId = this.shiftPath()
@@ -61,7 +76,8 @@ export default class Request {
 				// list devices
 			}
 			else if (this.client.hasDevice(deviceId)) {
-				// show device
+				const device = this.client.getDevice(deviceId)
+				return this.render(new UIDeviceView(this.client.getState(), device.getState()))
 			}
 			else {
 				// device not found
@@ -79,11 +95,54 @@ export default class Request {
 				// show group/location view
 			}
 		}
-		else return this.respondWith(new UIErrorView(this.client.getState()))
+		else return this.render(new UIErrorView(this.client.getState()))
 	}
 
 	private async respondToPost() {
+		const resource = this.shiftPath()
+		const data = await this.getData()
 
+		if (! resource) {
+			// client update
+			return this.redirect('/')
+		}
+		else if (resource === 'device') {
+			const deviceId = this.shiftPath()
+
+			if (deviceId) {
+				const device = this.client.getDevice(deviceId)
+				const deviceKey = this.shiftPath()
+				console.log('data', data)
+
+				if (device && deviceKey) {
+					if (deviceKey === 'power') {
+						await device.setPower(data.on === 'on')
+						console.log(device.power)
+					}
+
+					return this.redirect('/device/' + deviceId)
+				}
+				else throw {}
+			}
+			else throw {}
+		}
+	}
+
+	private async getData() {
+		return new Promise((resolve: (data: qs.ParsedUrlQuery) => any, reject) => {
+			const chunks: Array<string> = []
+			this.request.on('data', (chunk) => {
+				chunks.push(chunk)
+			})
+			this.request.on('end', () => {
+				try {
+					resolve(qs.parse(chunks.join('')))
+				}
+				catch (error) {
+					resolve({})
+				}
+			})
+		})
 	}
 
 	private parseMethod() {
@@ -126,6 +185,6 @@ export default class Request {
 	}
 
 	didRespond() {
-		return false
+		return true
 	}
 }

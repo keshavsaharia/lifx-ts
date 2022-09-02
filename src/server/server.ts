@@ -44,7 +44,8 @@ export default class LifxServer {
 		this.server = http.createServer((request, response) => {
 			const req = new Request(this.client, request, response)
 			req.respond().then(() => {
-				// log request
+				if (! req.didRespond())
+					response.writeHead(200).end('No response')
 			})
 			.catch((error) => {
 				if (! req.didRespond())
