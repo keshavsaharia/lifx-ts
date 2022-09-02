@@ -67,6 +67,9 @@ export default class LifxClient {
 
 	/**
 	 * @constructor
+	 * @desc 	Initializes a client instance for communicating with Lifx devices.
+	 * 			You can call .hasNetwork() to check if the client has an available
+	 * 			IPv4 network interface to send packets on.
 	 */
 	constructor() {
 		// Unique client ID
@@ -513,6 +516,10 @@ export default class LifxClient {
 	 */
 	getId(): number {
 		return this.id
+	}
+
+	hasNetwork() {
+		return this.network.length > 0
 	}
 
 	isRunning(): boolean {
