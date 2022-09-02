@@ -61,6 +61,7 @@ export default abstract class Packet<Result extends ResultObject> {
 
 	emitResponse(response: Response) {
 		if (this.handlers && this.handlers.length > 0) {
+			// response.payload.validateFilled()
 			const payload = this.buildResponse(response.payload)
 			if (payload != null)
 				this.handlers.forEach((handler) => handler(response, payload))

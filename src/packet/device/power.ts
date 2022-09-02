@@ -15,6 +15,9 @@ abstract class DevicePowerPacket extends Packet<DevicePower> {
 	}
 
 	buildResponse(payload: Payload) {
+		if (payload.size() != 2)
+			return null
+
 		const on = payload.getShort() == 0 ? false : true
 		return { on }
 	}

@@ -44,7 +44,7 @@ export const LIFX_FEATURES = ['hev', 'color', 'infrared', 'chain', 'matrix', 're
 export const PING_TIMEOUT = 3000
 export const DEFAULT_TIMEOUT = 3000
 export const DEFAULT_INTERVAL = 5000
-export const RATE_LIMIT = 50
+export const RATE_LIMIT = 10
 export const DEFAULT_TEMPERATURE = 2700
 
 export const BROADCAST_TARGET = '00:00:00:00:00:00'

@@ -53,6 +53,7 @@ export default class LifxClient {
 		transmission: Transmission
 		device: LifxDevice
 		resolve?: (bytes: number) => any
+		reject?: (error: any) => any
 	}>
 	private daemon: NodeJS.Timer
 
@@ -335,7 +336,8 @@ export default class LifxClient {
 					...DeviceTimeoutError,
 					label: device.getName(),
 					ip: device.getIP(),
-					mac: device.getMacAddress()
+					mac: device.getMacAddress(),
+					packet: packet.getName()
 				})
 			}, timeout || DEFAULT_TIMEOUT)
 
@@ -373,14 +375,15 @@ export default class LifxClient {
 	 * @func 	unicast
 	 * @desc	Send the given Transmission to the device by unicast.
 	 */
-	private async unicast(transmission: Transmission, device: LifxDevice, handler?: () => any) {
+	private async unicast(transmission: Transmission, device: LifxDevice) {
 		if (device.canSend())
 			return unicast(this.udp, transmission.buffer, device.getIP(), device.getPort())
-		else return new Promise((resolve: (bytes: number) => any) => {
+		else return new Promise((resolve: (bytes: number) => any, reject) => {
 			this.queue.push({
 				transmission,
 				device,
-				resolve
+				resolve,
+				reject
 			})
 		})
 	}
@@ -411,6 +414,11 @@ export default class LifxClient {
 							enqueued.device.getPort()).then((bytes) => {
 								if (enqueued.resolve)
 									enqueued.resolve(bytes)
+							})
+							.catch((error) => {
+								console.log('queue error', error)
+								if (enqueued.reject)
+									enqueued.reject(error)
 							})))
 		}
 	}
