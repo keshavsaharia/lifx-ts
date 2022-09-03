@@ -2,6 +2,10 @@ import fs from 'fs'
 import path from 'path'
 
 import {
+	LightColor
+} from '../../interface'
+
+import {
 	RESOURCE_DIR
 } from './constant'
 
@@ -25,4 +29,44 @@ export function getResource(type: string, name: string) {
 	if (fs.existsSync(resourcePath))
 		return fs.readFileSync(resourcePath, 'utf-8')
 	return ''
+}
+
+export function isLightColor(color: any): color is LightColor {
+	return color != null && typeof color === 'object' &&
+		color.hasOwnProperty('hue') &&
+		color.hasOwnProperty('saturation') &&
+		color.hasOwnProperty('brightness')
+}
+
+export function HSBtoRGB(color: LightColor): { r: number, g: number, b: number } {
+	const hue = color.hue * 360
+	const saturation = color.saturation * 255
+	const brightness = color.brightness * 255
+
+	const max = brightness
+	const min = max - ((saturation / 255) * max)
+	const range = max - min
+
+	if (hue <= 60)
+		return { r: max, g: (hue / 60) * range + min, b: min }
+	else if (hue <= 120)
+		return { r: ((120 - hue) / 60) * range + min, g: max, b: min }
+	else if (hue <= 180)
+		return { r: min, g: max, b: ((hue - 120) / 60) * range + min }
+	else if (hue <= 240)
+		return { r: min, g: ((240 - hue) / 60) * range + min, b: max }
+	else if (hue <= 300)
+		return { r: ((hue - 240) / 60) * range + min, g: min, b: max }
+	else
+		return { r: max, g: min, b: ((360 - hue) / 60) * range + min }
+}
+
+export function HSBtoCSS(color: LightColor): string {
+	const rgb = HSBtoRGB(color)
+	return '#' + hexValue(rgb.r) + hexValue(rgb.g) + hexValue(rgb.b)
+}
+
+function hexValue(rgb: number): string {
+	rgb = Math.max(0, Math.min(Math.floor(rgb), 255))
+	return rgb.toString(16)
 }

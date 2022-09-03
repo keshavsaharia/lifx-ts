@@ -202,17 +202,17 @@ export default class LifxDevice {
 		return this
 	}
 
-	async setCSS(css: string) {
+	async setCSS(css: string, kelvin?: number) {
 		return this.setColor({
 			...CSStoHSB(css),
-			kelvin: this.getTemperature()
+			kelvin: kelvin || this.getTemperature()
 		})
 	}
 
-	async setRGB(r: number, g: number, b: number, a?: number) {
+	async setRGB(r: number, g: number, b: number, a?: number, kelvin?: number) {
 		return this.setColor({
 			...RGBtoHSB(r, g, b, a),
-			kelvin: this.getTemperature()
+			kelvin: kelvin || this.getTemperature()
 		})
 	}
 

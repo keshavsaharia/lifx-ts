@@ -3,12 +3,12 @@ import UITable from './table'
 import UISwitch from './switch'
 import UISwitchboard from './switchboard'
 import UILink from './link'
-import UIForm from './form'
 import UIIcon from './icon'
 import UIStylesheet from './stylesheet'
 import UIScript from './script'
 import UIText from './text'
 import UISpan from './span'
+import UIGrid from './grid'
 
 export {
 	UIButton,
@@ -16,10 +16,10 @@ export {
 	UISwitch,
 	UISwitchboard,
 	UILink,
-	UIForm,
 	UIIcon,
 	UIStylesheet,
 	UIScript,
 	UIText,
-	UISpan
+	UISpan,
+	UIGrid
 }

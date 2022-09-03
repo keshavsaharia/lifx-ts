@@ -3,14 +3,14 @@ import {
 	UITable,
 	UILink,
 	UIText,
-	UISpan,
-	UIForm
+	UIPowerForm,
+	UIColorForm,
+	UITemperatureForm
 } from '..'
 
 import {
 	ClientState,
-	DeviceState,
-	DevicePower
+	DeviceState
 } from '../../../interface'
 
 export default class UIHomeView extends UIPage {
@@ -22,8 +22,8 @@ export default class UIHomeView extends UIPage {
 		this.addTitle('lifx')
 		this.body.addClass('home')
 
-		this.addStylesheet(['layout', 'home', 'table' ])
-		this.addScript('form')
+		this.addStylesheet(['layout', 'home', 'table', 'switch', 'slider' ])
+		this.addScript(['lifx', 'form'])
 
 		const table = new UITable<DeviceState>({
 			redirect: (state) => ('/device/' + state.mac),
@@ -48,20 +48,21 @@ export default class UIHomeView extends UIPage {
 					]
 				},
 				{
-					name: 'Device',
+					name: 'Power',
 					value: (_, state) => [
-						new UIForm<DevicePower>({
-						   device: state,
-						   key: 'power',
-						   state: state.power,
-						   auto: true,
-						   input: [
-							   {
-								   type: 'checkbox',
-								   key: 'on'
-							   }
-						   ]
-					   })
+						new UIPowerForm(state).stopPropagation()
+					]
+				},
+				{
+					name: 'Color',
+					value: (_, state) => [
+						new UIColorForm(state).stopPropagation()
+					]
+				},
+				{
+					name: 'Temperature',
+					value: (_, state) => [
+						new UITemperatureForm(state).stopPropagation()
 					]
 				}
 			]
