@@ -50,9 +50,9 @@ export default class UIPage extends UIElement {
 		if (this.scripts && this.scripts.size > 0) {
 			const script = this.body.addNew('script')
 			script.addAttr('type', 'text/javascript')
-			script.add(new UIScript('lifx', false, false))
+			script.add(new UIScript('lifx', true, false))
 			for (const scriptId of this.scripts) {
-				script.add(new UIScript(scriptId, false, false))
+				script.add(new UIScript(scriptId, true, false))
 			}
 		}
 		// Add doctype to rendered output

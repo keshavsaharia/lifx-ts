@@ -26,9 +26,12 @@ export default class UIScript extends UIElement {
 			script = script.replace(/\/\/?\*.*\*\//g, '')
 			// Remove newlines and spaces
 			script = script.replace(/\)\s+\{\n\s*/g, '){')
-			script = script.replace(/(\w)([\w\d]*)\s*\=\s*/g, '$1$2=')
-			script = script.replace(/\;\n\s*\}\s*/g, '}')
+			script = script.replace(/(\w)([\w\d]*)\s*(\=|\=\=|\+|\+\=|\>\=|\<\=)\s*/g, '$1$2$3')
+			script = script.replace(/\)\n\t+/g, ')')
+			script = script.replace(/\;\n\t*(\}+)(\;?)\n*\s*/g, '$1$2')
 			script = script.replace(/\n\t*/g, '')
+			script = script.replace(/\)\s+(\w)/g, ')$1')
+			script = script.replace(/\;\s+}\s*/g, '}')
 		}
 		// Return script without enclosing in script element
 		if (! this.scriptWrap)

@@ -12,23 +12,17 @@ import {
 	DeviceState
 } from '../../../interface'
 
+import {
+	deviceName
+} from './schema'
+
 export default class UIDeviceTable extends UITable<DeviceState> {
 
-	constructor() {
+	constructor(rows?: Array<DeviceState>) {
 		super({
 			redirect: (state) => ('/device/' + state.mac),
 			columns: [
-				{
-					name: 'Name',
-					key: 'label.label',
-					value: (name: string, state) => [
-						new UIText().addClass('name')
-							.add(new UILink().toPath('/device/' + state.mac).add(name)),
-						new UIText().addClass('product')
-							.add(state.product ? state.product.name : '')
-					],
-					sort: true
-				},
+				deviceName('Device'),
 				{
 					name: 'Network',
 					key: 'ip',
@@ -57,6 +51,9 @@ export default class UIDeviceTable extends UITable<DeviceState> {
 				}
 			]
 		})
+
+		if (rows)
+			this.addRow(rows)
 	}
 
 }

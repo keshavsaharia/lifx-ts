@@ -21,10 +21,10 @@ function upgradeInput(form, input) {
 		});
 
 		if (type == 'checkbox' && input.nextSibling && input.nextSibling.className.indexOf('slider') >= 0) {
-			var slider = input.nextSibling
-			slider.removeAttribute('onclick')
+			var slider = input.nextSibling;
+			slider.removeAttribute('onclick');
 			slider.addEventListener('click', function(e) {
-				input.checked = !input.checked
+				input.checked = !input.checked;
 				submitForm(form)
 			})
 		}

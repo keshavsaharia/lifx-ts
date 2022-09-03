@@ -20,8 +20,11 @@ export default class UIHomeView extends UIPage {
 		this.addTitle('lifx')
 		this.body.addClass('home')
 
-		this.addStylesheet(['layout', 'home', 'table', 'switch', 'slider' ])
-		this.addScript(['lifx', 'form'])
+		this.addStylesheet([
+			'layout', 'home', 'table',
+			'switch', 'slider', 'color'
+		])
+		this.addScript(['form'])
 
 		this.add(this.groupTable = new UIGroupTable(client.device))
 		this.groupTable.addRow(client.group)

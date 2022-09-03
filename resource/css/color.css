@@ -1,0 +1,7 @@
+.field.color {
+	height: 34px;
+}
+.field.color > input {
+	height: 34px;
+	padding: 0;
+}

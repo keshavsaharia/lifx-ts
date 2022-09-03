@@ -15,7 +15,7 @@ import {
 
 export default class UIGroupTable extends UITable<DeviceGroup> {
 
-	constructor(devices: Array<DeviceState>) {
+	constructor(devices: Array<DeviceState>, groups?: Array<DeviceGroup>) {
 		super({
 			redirect: (state) => ('/group/' + state.id),
 			columns: [
@@ -48,6 +48,9 @@ export default class UIGroupTable extends UITable<DeviceGroup> {
 				}
 			]
 		})
+
+		if (groups)
+			this.addRow(groups)
 	}
 
 }

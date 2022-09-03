@@ -3,30 +3,16 @@ import {
 } from '..'
 
 import {
-	ResultObject
-} from '../../../interface'
-
-import {
 	getValue
 } from '../util'
 
-interface UITableKey<Row> {
-	name: string
-	key?: string
-	value?: (cell: string | number | boolean | null, row: Row) => Array<UIElement> | UIElement | string
-	format?: string
-	sort?: boolean
-}
+import {
+	TableKey,
+	TableOption
+} from './interface'
 
-type UITableRedirect<Row> = (row: Row) => string | null
-
-interface UITableOption<Row> {
-	columns: Array<UITableKey<Row>>
-	redirect?: UITableRedirect<Row>
-}
-
-export default class UITable<Row extends ResultObject> extends UIElement {
-	option: UITableOption<Row>
+export default class UITable<Row extends { [key: string]: any }> extends UIElement {
+	option: TableOption<Row>
 
 	// thead and tbody elements
 	head: UIElement
@@ -34,9 +20,9 @@ export default class UITable<Row extends ResultObject> extends UIElement {
 
 	// Row data and column descriptors
 	rows: Array<Row>
-	columns: Array<UITableKey<Row>>
+	columns: Array<TableKey<Row>>
 
-	constructor(option: UITableOption<Row>) {
+	constructor(option: TableOption<Row>) {
 		super('table')
 		this.option = option
 		this.add(this.head = new UIElement('thead'))
@@ -113,7 +99,7 @@ export default class UITable<Row extends ResultObject> extends UIElement {
 	render() {
 		this.addHeadColumns()
 		this.addRowElements()
-		return super.render()
+		return ['<div class="table">', super.render(), '</div>'].join('')
 	}
 
 }

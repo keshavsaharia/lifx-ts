@@ -7,6 +7,9 @@ import {
 	UIElement,
 	UIHomeView,
 	UIDeviceView,
+	UIDeviceListView,
+	UIGroupListView,
+	UIGroupCreateView,
 	UIErrorView
 } from './ui'
 
@@ -79,7 +82,7 @@ export default class Request {
 			const deviceId = this.shiftPath()
 
 			if (! deviceId) {
-				// list devices
+				return this.render(new UIDeviceListView(this.client.getState()))
 			}
 			else if (this.client.hasDevice(deviceId)) {
 				const device = this.client.getDevice(deviceId)
@@ -87,18 +90,23 @@ export default class Request {
 			}
 			else {
 				// device not found
+				return this.redirect('/device')
 			}
 		}
 		else if (resource === 'group' || resource === 'location') {
 			const groupId = this.shiftPath()
+			const isLocation = (resource === 'location')
 
 			if (! groupId) {
-				// show group list
+				return this.render(new UIGroupListView(this.client.getState()))
 			}
 			else {
-				const devices = (resource === 'group') ?
-					this.client.getGroup(groupId) : this.client.getLocation(groupId)
-				// show group/location view
+				const devices = (isLocation) ? this.client.getLocation(groupId) : this.client.getGroup(groupId)
+
+				if (devices.length > 0)
+					return this.render(new UIDeviceListView(this.client.getState(), groupId, isLocation))
+				else
+					return this.render(new UIGroupCreateView(this.client.getState(), groupId, isLocation))
 			}
 		}
 		else return this.render(new UIErrorView(this.client.getState()))
@@ -137,48 +145,14 @@ export default class Request {
 			result = await device.setLight(this.parseBoolean(data.on), this.parseNumber(data.duration))
 		else if (key === 'infrared')
 			result = await device.setInfrared(this.parseNumber(data.brightness) || 0)
-		else if (key === 'temperature') {
-			const color = await device.getColor()
-			const kelvin = this.parseNumber(data.kelvin)
-			if (color && kelvin != null)
-				result = await device.setColor({
-					...color,
-					kelvin
-				})
-		}
-		else if (key === 'color') {
-			if (data.css) {
-				const css = this.parseString(data.css)
-				const kelvin = this.parseNumber(data.kelvin)
-				if (css)
-					result = await device.setCSS(css, kelvin)
-			}
-			else if (data.r != null && data.g != null && data.b != null) {
-				const r = this.parseNumber(data.r)
-				const g = this.parseNumber(data.g)
-				const b = this.parseNumber(data.b)
-				const a = this.parseNumber(data.a)
-				const kelvin = this.parseNumber(data.kelvin)
-
-				if (r != null && g != null && b != null)
-					result = await device.setRGB(r, g, b, a, kelvin)
-			}
-		}
-		else if (key === 'label') {
-			const label = this.parseString(data.label)
-			if (label != null)
-				result = await device.setLabel(label)
-		}
-		else if (key === 'location' || key === 'group') {
-			const id = this.parseString(data.id)
-			const label = this.parseString(data.label)
-			if (id != null && label != null) {
-				if (key === 'group')
-					result = await device.setGroup(id, label)
-				else
-					result = await device.setLocation(id, label)
-			}
-		}
+		else if (key === 'color')
+			result = await this.respondToDeviceColorPost(device, data)
+		else if (key === 'temperature')
+			result = await this.respondToDeviceTemperaturePost(device, data)
+		else if (key === 'label')
+			result = await device.setLabel(this.parseString(data.label) || '')
+		else if (key === 'location' || key === 'group')
+			result = await this.respondToDeviceGroupPost(device, key, data)
 
 		if (this.query.json)
 			return this.json(result || {})
@@ -203,6 +177,33 @@ export default class Request {
 			if (r != null && g != null && b != null)
 				return device.setRGB(r, g, b, a, kelvin)
 		}
+		return null
+	}
+
+	private async respondToDeviceTemperaturePost(device: LifxDevice, data: { [key: string]: any }) {
+		const color = await device.getColor()
+		const kelvin = this.parseNumber(data.kelvin)
+		if (color && kelvin != null)
+			return device.setColor({
+				...color,
+				kelvin
+			})
+		return null
+	}
+
+	private async respondToDeviceGroupPost(device: LifxDevice, key: string, data: { [key: string]: any }) {
+		const id = this.parseString(data.id)
+		const label = this.parseString(data.label)
+		if (id != null && label != null) {
+			if (key === 'group')
+				return device.setGroup(id, label)
+			else
+				return device.setLocation(id, label)
+		}
+		return null
+	}
+
+	private async respondToGroupPost(group: string) {
 
 	}
 
