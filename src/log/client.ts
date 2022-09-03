@@ -21,8 +21,10 @@ export default class ClientLogEmitter extends LogEmitter {
 
 	render(): KeyHandler {
 		// console.clear()
-		console.log('test')
-		console.log(this.test)
+		console.log('┏━━━━━━━━━━━━━━━━━')
+		console.log('┃')
+		console.log('┣━━━━━━━━━━━━━━━━━')
+		console.log('┗━━━━━━━━━━━━━━━━━')
 
 		return {
 			a: async (k) => {

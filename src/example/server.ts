@@ -6,7 +6,7 @@ import {
 async function main() {
 	const client = new LifxClient()
 	await client.start()
-	await client.startServer()
+	// await client.startServer()
 	await client.discover()
 
 	client.onConnect((device) => device.load())

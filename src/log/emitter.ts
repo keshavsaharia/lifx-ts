@@ -17,12 +17,12 @@ export default abstract class LogEmitter {
 	// 3 - all client and device state updates
 	// 4 - all client, device, and network events
 	logLevel: number = 2
-	private logNetworkEvent: Set<string>
-	private logInteractive: boolean = false
+	private interactiveMode: boolean = false
 
 	charHandler?: (data: Buffer) => any
 	charInterrupt?: () => any
 	refreshTimeout?: NodeJS.Timeout
+	lastRefresh?: number
 	exiting: boolean = false
 
 	constructor() {
@@ -30,40 +30,25 @@ export default abstract class LogEmitter {
 	}
 
 	interactive() {
+		this.interactiveMode = true
 		this.refresh()
 	}
+
+	abstract render(): KeyHandler | null
 
 	protected refresh() {
 		if (this.exiting)
 			return
-		// console.clear()
+		this.lastRefresh = Date.now()
+
+		console.clear()
 		const map = this.render()
 
 		if (map)
 			return this.refreshKeypress(map)
 	}
 
-	private async refreshKeypress(map: KeyHandler) {
-		try {
-			const key = await this.getChar()
-			if (this.exiting)
-				return null
-			else if (key && key.name && ! key.exit && map[key.name]) {
-				await map[key.name](key)
-				this.startRefreshTimer()
-				return key
-			}
-			else if (key && ! key.exit) {
-				this.startRefreshTimer()
-				return null
-			}
-		}
-		catch (error) {
-			return null
-		}
-	}
-
-	private startRefreshTimer() {
+	private triggerRefresh() {
 		if (this.refreshTimeout)
 			clearTimeout(this.refreshTimeout)
 		this.refreshTimeout = setTimeout(() => {
@@ -71,7 +56,27 @@ export default abstract class LogEmitter {
 		}, 50)
 	}
 
-	abstract render(): KeyHandler | null
+	private async refreshKeypress(map: KeyHandler) {
+		try {
+			const key = await this.getChar()
+			if (key) {
+				if (key.exit)
+					return null
+				else if (key.name && map[key.name]) {
+					await map[key.name](key)
+					this.triggerRefresh()
+					return key
+				}
+				else {
+					this.triggerRefresh()
+					return null
+				}
+			}
+		}
+		catch (error) {
+			return null
+		}
+	}
 
 	interrupt() {
 		if (this.exiting)
@@ -90,13 +95,9 @@ export default abstract class LogEmitter {
 				this.charInterrupt = undefined
 			}
 		}
-		console.log('interrupt ended')
-		process.stdin.end()
 	}
 
 	async getChar(): Promise<Keypress | null> {
-		console.log('Starting new key')
-
 		const key = await new Promise((resolve: (char: Keypress) => any) => {
 			const keypress = new StringDecoder('utf8')
 			if (this.charHandler)
@@ -127,10 +128,8 @@ export default abstract class LogEmitter {
 
 		if (key) {
 			if (key.exit) {
-				console.log('Exiting on key')
 				process.kill(process.pid, 'SIGINT')
 				process.kill(process.pid, 'SIGTERM')
-				console.log('sent signals')
 			}
 			return key
 		}

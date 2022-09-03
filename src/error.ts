@@ -35,3 +35,5 @@ export const DeviceRequestError = error('device_request', 'The device response d
 export const DeviceTimeoutError = error('device_timeout')
 export const DeviceFeatureError = (feature: string) =>
 	error('device_feature', 'The device does not have the "' + feature + '" feature.')
+
+export const ClientDisconnectError = error('client_disconnect')

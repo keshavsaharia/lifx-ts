@@ -48,7 +48,8 @@ export default class Request {
 	private render(element: UIElement): Request {
 		this.responded = true
 		this.response.writeHead(200, {
-			'Content-Type': 'text/html'
+			'Content-Type': 'text/html',
+			'Keep-Alive': 'true'
 		})
 		this.response.end(element.render())
 		return this
@@ -57,7 +58,8 @@ export default class Request {
 	private json(data: any): Request {
 		this.responded = true
 		this.response.writeHead(200, {
-			'Content-Type': 'application/json'
+			'Content-Type': 'application/json',
+			'Keep-Alive': 'true'
 		})
 		this.response.end(JSON.stringify(data))
 		return this

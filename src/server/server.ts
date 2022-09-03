@@ -26,6 +26,7 @@ import {
 export default class LifxServer {
 	server: http.Server
 	socket: { [id: string]: Socket }
+	websocket: { [id: string]: Websocket }
 	socketId: number = 0
 
 	client: LifxClient
@@ -61,7 +62,7 @@ export default class LifxServer {
 		this.socket = {}
 		this.server.on('connection', (socket) => {
 			// Generate new string ID for this socket
-			const id = this.socketId++ + ''
+			const id = this.getSocketId()
 			this.socket[id] = socket
 
 			// Remove the socket when it closes
@@ -72,8 +73,10 @@ export default class LifxServer {
 
 		// WebSocket upgrade
 		this.server.on('upgrade', (request, socket) => {
+
 			const ws = new Websocket(request, socket)
 			ws.handshake()
+			ws.listen()
 		})
 
 		this.alive = true
@@ -115,5 +118,9 @@ export default class LifxServer {
 				}
 			}
 		})
+	}
+
+	getSocketId() {
+		return this.socketId++ + ''
 	}
 }

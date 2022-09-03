@@ -33,7 +33,8 @@ import {
 
 import {
 	DeviceTimeoutError,
-	DeviceRequestError
+	DeviceRequestError,
+	ClientDisconnectError
 } from './error'
 
 /**
@@ -148,7 +149,6 @@ export default class LifxClient {
 			return true
 		this.alive = false
 
-		this.log.interrupt()
 		this.log.stopClient()
 		if (this.server)
 			try {
@@ -168,7 +168,7 @@ export default class LifxClient {
 		await Promise.all(this.devices.map((device) => device.stopMonitoring()))
 
 		// Close and/or unref the UDP socket
-		return new Promise((resolve: (stopped: boolean) => any) => {
+		const stopped = await new Promise((resolve: (stopped: boolean) => any) => {
 			try {
 				this.udp.close(() => {
 					this.udp.unref()
@@ -185,6 +185,11 @@ export default class LifxClient {
 				}
 			}
 		})
+
+		// Close process if any resources left hanging
+		if (stopped)
+			process.exit(0)
+		return stopped
 	}
 
 	/**
@@ -431,6 +436,9 @@ export default class LifxClient {
 	 * @param 	{Packet<R>}
 	 */
 	private async broadcast<R>(packet: Packet<R>, network: LifxNetworkInterface) {
+		if (! this.alive)
+			throw ClientDisconnectError
+
 		const transmission = this.build(packet)
 		return broadcast(this.udp, transmission.buffer, network.broadcast)
 	}
@@ -440,6 +448,9 @@ export default class LifxClient {
 	 * @desc	Send the given Transmission to the device by unicast.
 	 */
 	private async unicast(transmission: Transmission, device: LifxDevice) {
+		if (! this.alive)
+			throw ClientDisconnectError
+
 		if (device.canSend())
 			return unicast(this.udp, transmission.buffer, device.getIP(), device.getPort())
 		else
@@ -473,7 +484,7 @@ export default class LifxClient {
 	 */
 	private async dequeue() {
 		// Empty queue
-		if (this.queue.length == 0)
+		if (! this.alive || this.queue.length == 0)
 			return
 
 		// Find enqueued messages that can be sent

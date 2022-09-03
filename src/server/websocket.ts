@@ -3,6 +3,10 @@ import crypto from 'crypto'
 import * as stream from 'stream'
 
 import {
+	WebsocketMessage
+} from './interface'
+
+import {
 	InvalidWebsocketMessage
 } from './error'
 
@@ -11,6 +15,8 @@ const WS_GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
 export default class LifxWebsocket {
 	request: http.IncomingMessage
 	socket: stream.Duplex
+	upgraded: boolean
+	closed: boolean
 
 	// Queue for joining incoming message buffers with continuation frames
 	payload: Array<Buffer>
@@ -18,10 +24,13 @@ export default class LifxWebsocket {
 	constructor(request: http.IncomingMessage, socket: stream.Duplex) {
 		this.request = request
 		this.socket = socket
+		this.upgraded = false
+		this.closed = false
 		this.payload = []
 	}
 
 	handshake() {
+		console.log('handshaking')
 		const upgrade = this.getHeader('upgrade')
 		if (upgrade !== 'websocket')
 			return this.badRequest()
@@ -35,31 +44,62 @@ export default class LifxWebsocket {
 			'Upgrade: WebSocket',
 			'Connection: Upgrade',
 			'Sec-WebSocket-Accept: ' + this.accept(key),
+			'Sec-WebSocket-Protocol: json',
 			'\r\n'
 		].join('\r\n'))
+
+		console.log('shook hands')
 	}
 
 	listen() {
-		function constructReply(data: any) {
-		  // TODO: Construct a WebSocket frame Node.js socket buffer
-		  return {}
-		}
-		function parseMessage(buffer: Buffer) {
-		  return null
-		}
 		this.socket.on('data', (buffer) => {
-			const message = parseMessage(buffer)
-  			if (message) {
-				  this.socket.write(constructReply({ message: 'Hello from the server!' }))
-			}
-			else if (message === null) {
-				console.log('WebSocket connection closed by the client.');
-			}
-		});
-
+			this.upgraded = true
+			console.log('received message')
+			this.receive(buffer).then((reply) => {
+				if (reply)
+					  this.socket.write(reply)
+			})
+			.catch((error) => {
+				this.badRequest()
+				console.log('websocket close', error)
+			})
+		})
 	}
 
-	private parse(buffer: Buffer) {
+	private async receive(buffer: Buffer): Promise<Buffer | null> {
+		const message = this.parse(buffer)
+		console.log('message', message)
+		if (message)
+			return this.build(message)
+		return null
+	}
+
+	private build(data: WebsocketMessage): Buffer {
+		// Calculate payload and length description size
+		const json = JSON.stringify(data)
+		const payloadLength = Buffer.byteLength(json)
+		const sizeLength = (payloadLength > 65535) ? 8 : (payloadLength >= 126 ? 2 : 0)
+
+		// Write the final flag and the op code for text frame
+		const buffer = Buffer.alloc(2 + sizeLength + payloadLength)
+		buffer.writeUInt8(0b10000001, 0)
+
+		if (payloadLength > 65535) {
+			buffer.writeUInt8(127, 1)
+			buffer.writeIntBE(payloadLength, 2, 6)
+		}
+		else if (payloadLength >= 126) {
+			buffer.writeUInt8(126, 1)
+			buffer.writeUInt16BE(payloadLength, 2)
+		}
+		else {
+			buffer.writeUInt8(payloadLength, 1)
+		}
+		buffer.write(json, 2 + sizeLength, 'utf8')
+		return buffer
+	}
+
+	private parse(buffer: Buffer): WebsocketMessage | null {
 		// Ensure a header byte is available
 		if (buffer.length < 2)
 			throw InvalidWebsocketMessage
@@ -69,14 +109,14 @@ export default class LifxWebsocket {
 		const op = first & 0b00001111
 		// Termination frame or non-text frame
 		if (op === 0x8)
-			return null
+			return this.disconnect()
 		else if (op !== 0x1)
 			return this.disconnect()
 
 		const second = buffer.readUInt8(1)
-		const masked = (second & 0b1000000) > 0
+		const masked = (second & 0b10000000) > 0
 
-		// Keep track of our current position as we advance through the buffer
+		// Payload offset and total length
 		let offset = 2
 		let length = second & 0b01111111
 
@@ -101,29 +141,42 @@ export default class LifxWebsocket {
 			length = buffer.readUInt16BE(2)
 			offset = 4
 		}
-		// Otherwise length is 7 bits or less
-		else offset++
 
 		// Get payload with possible unmask operation
 		const { payload, overflow } = this.parsePayload(buffer, offset, length, masked)
 
 		if (final) {
 			// join all received buffers into a single payload
-			const message = Buffer.concat([ ...this.payload, payload ])
-			this.payload = []
-
-			// parse message
+			if (this.payload.length > 0) {
+				const extended = Buffer.concat([ ...this.payload, payload ])
+				this.payload = overflow.length > 0 ? [ overflow ] : []
+				return this.parseJSON(extended)
+			}
+			else return this.parseJSON(payload)
 		}
 		else {
 			this.payload.push(payload)
+			if (overflow.length > 0)
+				this.payload.push(overflow)
+			return null
 		}
-
-		if (overflow.length > 0)
-			this.payload.push(overflow)
 	}
 
-	private parsePayload(buffer: Buffer, offset: number, length: number, masked?: boolean): { payload: Buffer, overflow: Buffer } {
+	private parseJSON(buffer: Buffer): WebsocketMessage {
+		try {
+			const raw = buffer.toString('utf8')
+			const message = JSON.parse(raw)
+			// TODO: validate message
+			return message
+		}
+		catch (error) {
+			throw InvalidWebsocketMessage
+		}
+	}
+
+	private parsePayload(buffer: Buffer, offset: number, length: number, masked: boolean): { payload: Buffer, overflow: Buffer } {
 		const end = offset + length + (masked ? 4 : 0)
+
 		if (buffer.length < end)
 			throw InvalidWebsocketMessage
 
@@ -144,6 +197,10 @@ export default class LifxWebsocket {
 	}
 
 	disconnect() {
+		if (! this.closed) {
+			this.closed = true
+			this.socket.end()
+		}
 		return null
 	}
 

@@ -5,7 +5,7 @@ class LifxClient {
     }
 
     ready(callback) {
-        document.addEventListener('DOMContentLoaded', callback);
+        document.addEventListener('DOMContentLoaded', callback.bind(this));
     }
 
     post(form, callback) {
@@ -23,8 +23,22 @@ class LifxClient {
     }
 
 	connect() {
-		var ws = new WebSocket('/')
+		try {
+			var ws = new WebSocket('ws://' + window.location.host, ['json']);
+			ws.addEventListener('open', () => {
+				ws.send(JSON.stringify({ hey: 'there' }));
+			});
+			ws.addEventListener('message', (message) => {
+				console.log(message.data);
+			});
+		}
+		catch (error) {
+			console.log(error)
+		}
 	}
 }
 
 var lifx = new LifxClient();
+lifx.ready(function() {
+	lifx.connect();
+});
