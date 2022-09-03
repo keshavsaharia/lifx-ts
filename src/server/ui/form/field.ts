@@ -100,7 +100,6 @@ export default class UIField<Type, Result> extends UIElement {
 		this.input.addAttr('type', 'color')
 
 		if (isLightColor(this.formState)) {
-			console.log(this.formState)
 			this.input.addAttr('value', HSBtoCSS(this.formState))
 		}
 	}

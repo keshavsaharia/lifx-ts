@@ -50,9 +50,9 @@ export default class UITable<Row extends ResultObject> extends UIElement {
 		// Add the row to the internal array
 		if (Array.isArray(row))
 			row.forEach((r) => this.addRow(r))
-		else {
+		else
 			this.rows.push(row)
-		}
+		return this
 	}
 
 	private addHeadColumns() {

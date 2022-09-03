@@ -1,9 +1,9 @@
-import UIDeviceForm from './device'
+import UIDeviceForm from '../device'
 
 import {
 	DeviceState,
 	LightColor
-} from '../../../interface'
+} from '../../../../interface'
 
 export default class UITemperatureForm extends UIDeviceForm<LightColor> {
 

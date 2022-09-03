@@ -239,7 +239,10 @@ export default class LifxClient {
 		const locations: Array<DeviceGroup> = []
 		this.devices.forEach((device) => {
 			if (device.location && ! locations.find((l) => (l.id === device.location!.id)))
-				locations.push(device.location)
+				locations.push({
+					...device.location,
+					location: true
+				})
 		})
 		return locations
 	}

@@ -1,9 +1,9 @@
-import UIDeviceForm from './device'
+import UIDeviceForm from '../device'
 
 import {
 	DeviceState,
 	DevicePower
-} from '../../../interface'
+} from '../../../../interface'
 
 export default class UIPowerForm extends UIDeviceForm<DevicePower> {
 

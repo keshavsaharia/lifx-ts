@@ -1,6 +1,7 @@
 import {
 	UIPage,
-	UIDeviceTable
+	UIDeviceTable,
+	UIGroupTable
 } from '..'
 
 import {
@@ -11,6 +12,7 @@ import {
 export default class UIHomeView extends UIPage {
 	client: ClientState
 	deviceTable: UIDeviceTable
+	groupTable: UIGroupTable
 
 	constructor(client: ClientState) {
 		super()
@@ -20,6 +22,9 @@ export default class UIHomeView extends UIPage {
 
 		this.addStylesheet(['layout', 'home', 'table', 'switch', 'slider' ])
 		this.addScript(['lifx', 'form'])
+
+		this.add(this.groupTable = new UIGroupTable(client.device))
+		this.groupTable.addRow(client.group)
 
 		this.add(this.deviceTable = new UIDeviceTable())
 		this.deviceTable.addRow(client.device)

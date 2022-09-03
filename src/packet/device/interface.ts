@@ -38,6 +38,7 @@ export interface DeviceGroup {
 	id: string
 	label: string
 	updated: number
+	location?: boolean
 }
 
 export interface DeviceReboot {

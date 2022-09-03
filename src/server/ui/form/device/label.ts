@@ -1,9 +1,9 @@
-import UIDeviceForm from './device'
+import UIDeviceForm from '../device'
 
 import {
 	DeviceState,
 	DeviceLabel
-} from '../../../interface'
+} from '../../../../interface'
 
 export default class UILabelForm extends UIDeviceForm<DeviceLabel> {
 
