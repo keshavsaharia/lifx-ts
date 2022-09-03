@@ -15,11 +15,15 @@ export default class ServerLogEmitter extends LogEmitter {
 		this.client = client
 	}
 
-	start() {
+	render() {
+		return null
+	}
+
+	startServer() {
 
 	}
 
-	stop() {
+	stopServer() {
 
 	}
 

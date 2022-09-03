@@ -7,6 +7,9 @@
 	"scripts": {
 		"products": "cd data && wget https://raw.githubusercontent.com/LIFX/products/master/products.json"
 	},
+	"bin": {
+    	"lifx": "dist/cli/run.js"
+	},
 	"author": "Keshav Saharia",
 	"license": "MIT",
 	"devDependencies": {

@@ -69,7 +69,7 @@ export default class LifxServer {
 			})
 		})
 		this.alive = true
-		this.log.start()
+		this.log.startServer()
 
 		// Listen to shutdown signals and close the socket
 		process.on('SIGTERM', () => this.stop())
@@ -80,7 +80,7 @@ export default class LifxServer {
 		if (! this.alive || ! this.server)
 			return true
 		this.alive = false
-		this.log.stop()
+		this.log.stopServer()
 
 		// Destroy open sockets
 		if (this.socket)

@@ -109,10 +109,13 @@ export default class LifxClient {
 			return this
 
 		// If the socket is successfully created, set the "alive" flag to true
-		this.log.starting()
+		this.log.startClient()
 		this.port = port || LIFX_PORT
 		this.udp = await createSocket(this.port, this.receivePacket.bind(this))
 		this.alive = true
+		this.log.startClient(true)
+
+		// Start interactive logging
 		this.log.start()
 
 		// Listen to shutdown signals and close the socket
@@ -141,7 +144,8 @@ export default class LifxClient {
 			return true
 		this.alive = false
 
-		this.log.stop()
+		this.log.interrupt()
+		this.log.stopClient()
 		if (this.server)
 			await this.server.stop()
 

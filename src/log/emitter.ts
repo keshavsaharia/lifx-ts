@@ -1,5 +1,15 @@
+import { StringDecoder } from 'string_decoder'
 
-export default class LogEmitter {
+import {
+	getKey
+} from './util'
+
+import {
+	Keypress,
+	KeyHandler
+} from './interface'
+
+export default abstract class LogEmitter {
 
 	// 0 - no console output
 	// 1 - only client state logs
@@ -8,9 +18,135 @@ export default class LogEmitter {
 	// 4 - all client, device, and network events
 	logLevel: number = 2
 	private logNetworkEvent: Set<string>
+	private logInteractive: boolean = false
+
+	charHandler?: (data: Buffer) => any
+	charInterrupt?: () => any
+	refreshTimeout?: NodeJS.Timeout
+	exiting: boolean = false
 
 	constructor() {
 
+	}
+
+	start() {
+		this.refresh()
+	}
+
+	protected refresh() {
+		// console.clear()
+		const map = this.render()
+
+		if (map)
+			return this.refreshKeypress(map)
+	}
+
+	private async refreshKeypress(map: KeyHandler) {
+		try {
+			const key = await this.getChar()
+			if (this.exiting)
+				return null
+			else if (key && key.name && ! key.exit && map[key.name]) {
+				await map[key.name](key)
+				this.startRefreshTimer()
+				return key
+			}
+			else if (key && ! key.exit) {
+				this.startRefreshTimer()
+				return null
+			}
+		}
+		catch (error) {
+			return null
+		}
+	}
+
+	private startRefreshTimer() {
+		if (this.refreshTimeout)
+			clearTimeout(this.refreshTimeout)
+		this.refreshTimeout = setTimeout(() => {
+			this.refresh()
+		}, 50)
+	}
+
+	abstract render(): KeyHandler | null
+
+	interrupt() {
+		if (this.exiting)
+			return
+		this.exiting = true
+		if (this.refreshTimeout)
+			clearTimeout(this.refreshTimeout)
+		if (this.charHandler) {
+			process.stdin.setRawMode(false)
+			process.stdin.removeListener('data', this.charHandler)
+			this.charHandler = undefined
+
+			if (this.charInterrupt) {
+				this.charInterrupt()
+				this.charInterrupt = undefined
+			}
+		}
+	}
+
+	async getChar(): Promise<Keypress | null> {
+		console.log('Starting new key')
+
+		const key = await new Promise((resolve: (char: Keypress) => any) => {
+			const keypress = new StringDecoder('utf8')
+			this.charHandler = (data: Buffer) => {
+				const char = keypress.write(data)
+				if (char) {
+					const key = getKey(char)
+					if (key) {
+						if (this.charHandler) {
+							process.stdin.setRawMode(false)
+							process.stdin.removeListener('data', this.charHandler)
+						}
+						this.charInterrupt = undefined
+						resolve(key)
+					}
+					else resolve({})
+				}
+			};
+			this.charInterrupt = () => {
+				process.stdin.setRawMode(false)
+				resolve({})
+			}
+			process.stdin.setRawMode(true)
+			process.stdin.on('data', this.charHandler.bind(this))
+		})
+
+		if (key) {
+			if (key.exit) {
+				console.log('Exiting on key')
+				this.interrupt()
+				process.kill(process.pid, 'SIGINT')
+				process.kill(process.pid, 'SIGTERM')
+				console.log('sent signals')
+			}
+			return key
+		}
+		return null
+	}
+
+	protected red(text: any) {
+		return this.color(31, null, text)
+	}
+
+	private ansi(fg: number | null = null, bg: number | null = null): string {
+		return ['\x1b[',
+			(fg == null && bg == null) ? '0' : '',
+			(fg != null ? fg : ''),
+			bg != null ? ';' : '',
+			bg != null ? bg : '',
+		'm'].join('')
+	}
+
+	private color(fg: number | null, bg: number | null, text: any) {
+		if (text != null)
+			return [this.ansi(fg, bg), text.toString(), this.ansi()].join('')
+		return ''
 	}
 
 	// private logEvent(event: string, device?: LifxDevice | number, level?: number) {

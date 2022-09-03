@@ -15,7 +15,7 @@ async function main() {
 	client.onConnect((device) => device.load())
 
 	client.onLoad((device) => {
-		console.log('Loaded ' + device.getName())
+		// console.log('Loaded ' + device.getName())
 	})
 
 	process.on('unhandledRejection', (reason, p) => {
