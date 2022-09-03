@@ -21,6 +21,10 @@ class LifxClient {
         };
         xhr.send(new URLSearchParams(new FormData(form)));
     }
+
+	connect() {
+		var ws = new WebSocket('/')
+	}
 }
 
 var lifx = new LifxClient();

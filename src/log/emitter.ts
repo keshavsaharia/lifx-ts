@@ -29,11 +29,13 @@ export default abstract class LogEmitter {
 
 	}
 
-	start() {
+	interactive() {
 		this.refresh()
 	}
 
 	protected refresh() {
+		if (this.exiting)
+			return
 		// console.clear()
 		const map = this.render()
 
@@ -74,6 +76,7 @@ export default abstract class LogEmitter {
 	interrupt() {
 		if (this.exiting)
 			return
+
 		this.exiting = true
 		if (this.refreshTimeout)
 			clearTimeout(this.refreshTimeout)
@@ -87,6 +90,8 @@ export default abstract class LogEmitter {
 				this.charInterrupt = undefined
 			}
 		}
+		console.log('interrupt ended')
+		process.stdin.end()
 	}
 
 	async getChar(): Promise<Keypress | null> {
@@ -94,6 +99,9 @@ export default abstract class LogEmitter {
 
 		const key = await new Promise((resolve: (char: Keypress) => any) => {
 			const keypress = new StringDecoder('utf8')
+			if (this.charHandler)
+				process.stdin.removeListener('data', this.charHandler)
+
 			this.charHandler = (data: Buffer) => {
 				const char = keypress.write(data)
 				if (char) {
@@ -120,7 +128,6 @@ export default abstract class LogEmitter {
 		if (key) {
 			if (key.exit) {
 				console.log('Exiting on key')
-				this.interrupt()
 				process.kill(process.pid, 'SIGINT')
 				process.kill(process.pid, 'SIGTERM')
 				console.log('sent signals')

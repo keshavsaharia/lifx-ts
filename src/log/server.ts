@@ -20,11 +20,11 @@ export default class ServerLogEmitter extends LogEmitter {
 	}
 
 	startServer() {
-
+		console.log('starting server')
 	}
 
 	stopServer() {
-
+		console.log('stopping server')
 	}
 
 }

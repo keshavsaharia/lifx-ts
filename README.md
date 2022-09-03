@@ -1,8 +1,8 @@
 # lifx-ts
 
-Communicates with [LIFX](https://www.lifx.com/) smart bulbs over the local network through an object-oriented module written in TypeScript.
+Communicate with [LIFX](https://www.lifx.com/) smart bulbs over the local network either programmatically (with full Typescript support), with the built-in management interface, or through the REST API.
 
-- Zero external dependencies, just `npm install lifx-ts` to get started
+- Zero external dependencies, just `npm install -g lifx-ts` to get started
 - All asynchronous functions return a `Promise`
 - Abstracts binary protocol into easily extensible [Packet objects](./src/packet)
 - Robustly manages UDP broadcast, unicast, rate limiting, and message queueing

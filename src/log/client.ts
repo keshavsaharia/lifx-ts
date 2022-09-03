@@ -35,7 +35,7 @@ export default class ClientLogEmitter extends LogEmitter {
 	}
 
 	startClient(alive?: boolean) {
-		console.log('Starting client')
+		console.log('Starting client', alive)
 	}
 
 	stopClient(alive?: boolean) {

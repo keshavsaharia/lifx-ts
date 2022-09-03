@@ -12,6 +12,7 @@ import {
 } from '..'
 
 import Request from './request'
+import Websocket from './websocket'
 
 import {
 	LIFX_PORT
@@ -68,6 +69,13 @@ export default class LifxServer {
 				delete this.socket[id]
 			})
 		})
+
+		// WebSocket upgrade
+		this.server.on('upgrade', (request, socket) => {
+			const ws = new Websocket(request, socket)
+			ws.handshake()
+		})
+
 		this.alive = true
 		this.log.startServer()
 
@@ -85,7 +93,9 @@ export default class LifxServer {
 		// Destroy open sockets
 		if (this.socket)
 			Object.keys(this.socket).forEach((id) => {
-				this.socket[id].destroy()
+				const socket = this.socket[id]
+				if (socket)
+					socket.destroy()
 			})
 
 		return new Promise((resolve: (stopped: boolean) => any) => {

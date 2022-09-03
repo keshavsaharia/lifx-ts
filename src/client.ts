@@ -116,7 +116,7 @@ export default class LifxClient {
 		this.log.startClient(true)
 
 		// Start interactive logging
-		this.log.start()
+		this.log.interactive()
 
 		// Listen to shutdown signals and close the socket
 		process.on('SIGTERM', () => this.stop())
@@ -125,6 +125,10 @@ export default class LifxClient {
 		return this
 	}
 
+	/**
+	 * @func 	startServer
+	 * @desc 	Start the management/API HTTP server
+	 */
 	async startServer() {
 		if (! this.server) {
 			this.server = new LifxServer(this)
@@ -147,7 +151,12 @@ export default class LifxClient {
 		this.log.interrupt()
 		this.log.stopClient()
 		if (this.server)
-			await this.server.stop()
+			try {
+				await this.server.stop()
+			}
+			catch (error) {
+				console.log('server', error)
+			}
 
 		// Clear queue and dequeuing process
 		this.queue = []

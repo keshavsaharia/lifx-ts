@@ -530,7 +530,7 @@ export default class LifxDevice {
 		else if (key === 'firmware') update = () => this.getFirmware()
 
 		if (update)
-			return this.addWatcher(key, interval, update.bind(this))
+			return this.addWatcher(key, interval, update)
 		return this
 	}
 
@@ -538,7 +538,7 @@ export default class LifxDevice {
 		this.stopWatcher(key)
 		this.watcher[key] = setInterval(() => {
 			try {
-				update()
+				update.call(this)
 			}
 			catch (error) {}
 		}, interval)
@@ -577,7 +577,7 @@ export default class LifxDevice {
 		const state: ResultObject = this.state
 
 		try {
-			const result: Result = await source.bind(this)()
+			const result: Result = await source.call(this)
 
 			if (result != null) {
 				device[key] = state[key] = value
@@ -617,7 +617,7 @@ export default class LifxDevice {
 		const state: ResultObject = this.state
 
 		try {
-			const result: Result = await source.bind(this)()
+			const result: Result = await source.call(this)
 			if (result != null && ! objectEqual(device[key], result)) {
 				device[key] = result
 				state[key] = result
