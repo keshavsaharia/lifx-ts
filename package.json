@@ -10,16 +10,10 @@
 	"author": "Keshav Saharia",
 	"license": "MIT",
 	"devDependencies": {
-		"@types/chalk": "^2.2.0",
-		"@types/jest": "^29.0.0",
-		"@types/node": "^18.7.13",
-		"jest": "^29.0.1"
+		"@types/node": "^18.7.13"
 	},
 	"bugs": {
 		"url": "https://github.com/keshavsaharia/cloudsearch-ts/issues"
 	},
-	"homepage": "https://github.com/keshavsaharia/cloudsearch-ts#readme",
-	"dependencies": {
-		"chalk": "^4.1.2"
-	}
+	"homepage": "https://github.com/keshavsaharia/cloudsearch-ts#readme"
 }

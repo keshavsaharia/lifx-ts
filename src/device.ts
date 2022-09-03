@@ -487,7 +487,8 @@ export default class LifxDevice {
 						(handler as LifxStateHandler<LifxDevice>)(this, this)
 				}
 				catch (error) {
-					console.log('handler for ' + event + ' failed', error)
+					//console.log('handler for ' + event + ' failed', error)
+
 				}
 			})
 	}
@@ -617,13 +618,9 @@ export default class LifxDevice {
 
 		try {
 			const result: Result = await source.bind(this)()
-			console.log('result', result)
 			if (result != null && ! objectEqual(device[key], result)) {
-				console.log('setting', key)
 				device[key] = result
 				state[key] = result
-
-				console.log('set', device[key])
 
 				// Emit to device listeners
 				this.emit('change', this)

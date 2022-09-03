@@ -1,5 +1,4 @@
 import dgram from 'dgram'
-import chalk from 'chalk'
 
 import {
 	LifxServer,
@@ -41,11 +40,11 @@ function clientSocket(socket: dgram.Socket) {
 }
 
 function clientStart(client: LifxClient) {
-	return chalk.green('Starting client')
+	return 'Starting client'
 }
 
 function clientStop(client: LifxClient) {
-	return chalk.green('Stopping client')
+	return 'Stopping client'
 }
 
 function serverStart(client: LifxClient) {

@@ -43,6 +43,8 @@ export interface ClientState {
 	id: number
 	alive: boolean
 	queue?: number
+	group: Array<DeviceGroup>
+	location: Array<DeviceGroup>
 	device: Array<DeviceState>
 }
 

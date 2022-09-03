@@ -257,6 +257,8 @@ export default class LifxClient {
 			id: this.id,
 			alive: this.alive,
 			queue: this.queue.length,
+			group: this.getGroups(),
+			location: this.getLocations(),
 			device: this.devices.map((device) => device.state)
 		}
 	}
