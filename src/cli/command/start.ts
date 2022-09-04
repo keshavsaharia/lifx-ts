@@ -13,9 +13,9 @@ export default class LifxStartCommand extends LifxCommand {
 	async execute() {
 		const client = new LifxClient()
 		await client.discover()
-		client.monitor(1000)
+		client.monitor(10000)
 		client.startServer()
-
+		client.log.interactive()
 	}
 
 }

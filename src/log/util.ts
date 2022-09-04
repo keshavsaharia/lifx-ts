@@ -2,6 +2,12 @@ import {
 	Keypress
 } from './interface'
 
+export function repeated(str: string | null, times: number) {
+	if (str == null)
+		return ''
+	return new Array(times).fill(str).join('')
+}
+
 export function getKey(s: string) {
 	const key: Keypress = {
 		ctrl: false,

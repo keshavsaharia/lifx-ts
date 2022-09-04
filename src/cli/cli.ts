@@ -1,20 +1,31 @@
 import LifxStartCommand from './command/start'
 
-export default class LifxCLI {
+import LifxRouter from './router'
+
+export default class LifxCLI extends LifxRouter {
 
 	constructor() {
-
-	}
-
-	async parse(args: Array<string>) {
-		if (args.length == 0)
-			return console.log('help')
-
-		const command = args[0]
-		if (command == 'start') {
-			// start client/server
-			console.log('starting server')
-		}
+		super({
+			child: {
+				start: LifxStartCommand
+			},
+			option: [
+				{
+					pattern: ['-p', '--port'],
+					key: 'port',
+					type: 'number',
+					name: 'Port',
+					description: 'Port to start UDP/TCP sockets on'
+				},
+				{
+					pattern: ['-s', '--serve'],
+					name: 'Server port',
+					description: 'Port to start application server on',
+					type: 'number',
+					key: 'server_port'
+				}
+			]
+		})
 	}
 
 }

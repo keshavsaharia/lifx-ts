@@ -4,7 +4,7 @@ export type LogContent = Array<LogFragment> | LogFragment | string
 
 export interface LogConstraint {
 	width: number
-	border?: Array<string>
-	padding?: Array<number>
-	corner?: Array<string>
+	border?: Array<string | null>
+	padding?: Array<string | null>
+	corner?: Array<string | null>
 }

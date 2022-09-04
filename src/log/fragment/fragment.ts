@@ -3,6 +3,14 @@ import {
 	LogConstraint
 } from '../interface'
 
+import {
+	repeated
+} from '../util'
+
+const SPACE = ' '
+const EOL = '\n'
+const EMPTY = ''
+
 export default class LogFragment {
 	content: Array<LogContent>
 	fg?: number
@@ -14,8 +22,8 @@ export default class LogFragment {
 		this.content = args
 	}
 
-	repeat(sequence: string, times: number) {
-		this.content.push(new Array(times).fill(sequence).join(''))
+	repeat(str: string, times: number) {
+		this.content.push(repeated(str, times))
 		return this
 	}
 
@@ -26,28 +34,52 @@ export default class LogFragment {
 
 	renderIn(constraint: LogConstraint) {
 		const lines = this.render().split('\n')
-		const border = constraint.border || []
-		let padding = constraint.padding || [0, 0, 0, 0]
+		const corner = constraint.corner || []
+		let border = constraint.border || []
+		let padding = constraint.padding || []
+
+		// Duplicate top/bottom and left/right
+		if (border.length == 2)
+			border = border.concat(border)
 		if (padding.length == 2)
 			padding = padding.concat(padding)
 
 		// Calculate border width from top, right, bottom, left array
 		const borderWidth = (border[1] || '').length + (border[3] || '').length
+		const paddingWidth = (padding[1] || '').length + (padding[3] || '').length
+		const innerWidth = constraint.width - borderWidth
+		const lineWidth = innerWidth - paddingWidth
 
 		const output: Array<string> = []
+
+		// Top border
+		if (border[0])
+			output.push(
+				corner[0] || border[0] || EMPTY,
+				repeated(border[0], innerWidth),
+				corner[1] || border[1] || EMPTY, EOL)
+		// Top padding
+		if (padding[0])
+			output.push(border[3] || EMPTY, repeated(padding[0], innerWidth), border[1] || EMPTY, EOL)
+
+		// Constrain each line within the size
 		lines.forEach((line) => {
-			const cropped = line.substring(0, constraint.width - borderWidth)
-			if (border[1] != null)
-				output.push(border[1])
+			output.push(border[3] || EMPTY, padding[3] || EMPTY)
 
+			const cropped = line.substring(0, lineWidth)
 			output.push(cropped)
+			if (cropped.length < lineWidth)
+				output.push(repeated(SPACE, lineWidth - cropped.length))
 
-			if (border[3] != null)
-				output.push(border[3])
+			output.push(padding[1] || EMPTY, border[1] || EMPTY)
 		})
-		if (constraint.border) {
 
-		}
+		if (padding[2])
+			output.push(border[3] || EMPTY, repeated(padding[2], innerWidth), border[1] || EMPTY, EOL)
+		if (border[2])
+			output.push(corner[3] || border[3] || EMPTY, repeated(border[2], innerWidth), corner[2] || SPACE, EOL)
+
+		return output.filter((s) => s.length > 0).join('')
 	}
 
 	render(): string {
