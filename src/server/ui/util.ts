@@ -24,8 +24,8 @@ export function getValue(obj: { [key: string]: any }, key: string) {
 	return c
 }
 
-export function getResource(type: string, name: string) {
-	const resourcePath = path.join(RESOURCE_DIR, type, name + '.' + type)
+export function getResource(type: string, name: string, minify?: boolean) {
+	const resourcePath = path.join(RESOURCE_DIR, type, name + (minify ? '.min.' : '.') + type)
 	if (fs.existsSync(resourcePath))
 		return fs.readFileSync(resourcePath, 'utf-8')
 	return ''

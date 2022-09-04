@@ -15,7 +15,7 @@ export default class UIStylesheet extends UIElement {
 	}
 
 	render() {
-		const stylesheet = getResource('css', this.stylesheetName).replace(/\s*\n(\s|\t)*/g, '')
+		const stylesheet = getResource('css', this.stylesheetName)
 		return ['<style>', stylesheet, '</style>'].join('')
 	}
 

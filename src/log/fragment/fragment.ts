@@ -1,5 +1,6 @@
 import {
-	LogContent
+	LogContent,
+	LogConstraint
 } from '../interface'
 
 export default class LogFragment {
