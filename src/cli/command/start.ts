@@ -12,10 +12,16 @@ export default class LifxStartCommand extends LifxCommand {
 
 	async execute() {
 		const client = new LifxClient()
+		client.log.interactive()
+
 		await client.discover()
 		client.monitor(10000)
 		client.startServer()
-		client.log.interactive()
+
+		client.onConnect((device) => device.load())
+		client.onLoad((device) => {
+			device.monitor(['power', 'color', 'light'])
+		})
 	}
 
 }

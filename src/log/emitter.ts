@@ -24,15 +24,23 @@ export default abstract class LogEmitter {
 	logLevel: number = 2
 	private interactiveMode: boolean = false
 
-	charHandler?: (data: Buffer) => any
-	charInterrupt?: () => any
+	keypressHandler?: (data: Buffer) => any
+	keypressInterrupt?: () => any
+	keypressDecoder: StringDecoder
+
 	refreshTimeout?: NodeJS.Timeout
 	lastRefresh: number
 	exiting: boolean = false
 
 	constructor() {
 		this.lastRefresh = Date.now()
+		this.keypressDecoder = new StringDecoder('utf8')
 	}
+
+
+	//
+	// Interactive log output (default)
+	//
 
 	interactive() {
 		this.interactiveMode = true
@@ -45,7 +53,7 @@ export default abstract class LogEmitter {
 	 */
 	abstract render(): KeyHandler | null
 
-	protected async refresh(): Promise<Keypress | null> {
+	private async refresh(): Promise<Keypress | null> {
 		if (this.exiting || ! this.interactiveMode)
 			return null
 		this.lastRefresh = Date.now()
@@ -54,13 +62,7 @@ export default abstract class LogEmitter {
 		return this.getNextKeypress(this.render())
 	}
 
-	private triggerRefresh(content?: LogContent) {
-		if (! this.interactiveMode) {
-
-			return
-		}
-		if (this.refreshTimeout)
-			clearTimeout(this.refreshTimeout)
+	protected triggerRefresh() {
 
 		process.nextTick(function() {
 			const now = Date.now()
@@ -68,29 +70,30 @@ export default abstract class LogEmitter {
 			if (sinceLastRefresh >= REFRESH_RATE)
 				this.refresh()
 			else
-				this.refreshTimeout = setTimeout(this.refresh.bind(this), REFRESH_RATE)
+				this.refreshTimeout = setTimeout(this.refresh.bind(this), REFRESH_RATE - sinceLastRefresh)
 		}.bind(this))
 	}
 
 	private async getNextKeypress(map?: KeyHandler | null): Promise<Keypress | null> {
-		if (map == null)
-			return null
-
 		while (true) {
 			try {
 				const key = await this.getKeypress()
+				console.log('got key', key)
 				if (key) {
+					// If the keypress is an escape sequence like Ctrl+C or Ctrl+Q
 					if (key.exit)
 						return null
-					else if (key.name && map[key.name]) {
-						await map[key.name].call(this, key)
-						this.triggerRefresh()
-						return key
+					else if (map) {
+						if (key.name && map[key.name]) {
+							await map[key.name].call(this, key)
+							this.triggerRefresh()
+							return key
+						}
+						else {
+							console.log('no handler', key.name)
+						}
 					}
-					else {
-						this.triggerRefresh()
-						return null
-					}
+					// If there is no  ignore the key
 				}
 			}
 			catch (error) {
@@ -105,43 +108,49 @@ export default abstract class LogEmitter {
 			return
 
 		this.exiting = true
-		if (this.refreshTimeout)
-			clearTimeout(this.refreshTimeout)
+		this.interruptRefresh()
+		this.interruptKeypress()
+	}
 
-		if (this.charInterrupt) {
-			this.charInterrupt()
-			this.charInterrupt = undefined
+	interruptRefresh() {
+		if (this.refreshTimeout) {
+			clearTimeout(this.refreshTimeout)
+			this.refreshTimeout = undefined
 		}
-		if (this.charHandler) {
-			process.stdin.removeListener('data', this.charHandler)
-			this.charHandler = undefined
+	}
+
+	interruptKeypress() {
+		if (this.keypressInterrupt) {
+			this.keypressInterrupt()
+			this.keypressInterrupt = undefined
+		}
+		if (this.keypressHandler) {
+			process.stdin.removeListener('data', this.keypressHandler)
+			this.keypressHandler = undefined
 		}
 	}
 
 	async getKeypress(): Promise<Keypress | null> {
-		if (this.charHandler)
-			process.stdin.removeListener('data', this.charHandler)
+		this.interruptKeypress()
 
 		const key = await new Promise((resolve: (char: Keypress | null) => any) => {
-			const keypress = new StringDecoder('utf8')
-
 			const interrupt = function() {
 				process.stdin.removeListener('data', handler)
 				resolve(null)
 			}.bind(this);
 
 			const handler = function (data: Buffer) {
-				const char = keypress.write(data)
+				const char = this.keypressDecoder.write(data)
 				if (char) {
 					const key = getKey(char)
 					process.stdin.removeListener('data', handler)
-					this.charHandler = this.charInterrupt = undefined
+					this.keypressHandler = this.keypressInterrupt = undefined
 					resolve(key)
 				}
 			}.bind(this)
 
-			this.charHandler = handler
-			this.charInterrupt = interrupt
+			this.keypressHandler = handler
+			this.keypressInterrupt = interrupt
 			process.stdin.on('data', handler)
 		})
 
@@ -155,4 +164,12 @@ export default abstract class LogEmitter {
 		return null
 	}
 
+	// Standard log output functions
+
+	output(content: LogContent) {
+		if (Array.isArray(content))
+			content.forEach((fragment) => console.log(fragment.toString()))
+		else
+			console.log(content.toString())
+	}
 }

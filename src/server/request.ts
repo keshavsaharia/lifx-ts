@@ -17,6 +17,11 @@ import {
 	ResourceNotFound
 } from './error'
 
+import {
+	getStaticResource,
+	getMimeType
+} from './ui/util'
+
 import http from 'http'
 import url from 'url'
 import qs from 'querystring'
@@ -57,9 +62,23 @@ export default class Request {
 		this.responded = true
 		this.response.writeHead(200, {
 			'Content-Type': 'text/html',
-			'Keep-Alive': 'true'
+			'Connection': 'close'
 		})
 		this.response.end(element.render())
+		return this
+	}
+
+	private resource(resourcePath: string) {
+		const resource = getStaticResource(resourcePath)
+		if (! resource)
+			return this.notFound()
+
+		this.responded = true
+		this.response.writeHead(200, {
+			'Content-Type': getMimeType(resourcePath),
+			'Connection': 'close'
+		})
+		this.response.end(resource)
 		return this
 	}
 
@@ -67,7 +86,7 @@ export default class Request {
 		this.responded = true
 		this.response.writeHead(200, {
 			'Content-Type': 'application/json',
-			'Keep-Alive': 'true'
+			'Connection': 'close'
 		})
 		this.response.end(JSON.stringify(data))
 		return this
@@ -82,11 +101,21 @@ export default class Request {
 		return this
 	}
 
+	private notFound() {
+		this.responded = true
+		this.response.writeHead(404)
+		this.response.end()
+		return this
+	}
+
 	private async respondToGet() {
 		const resource = this.shiftPath()
 
 		if (! resource) {
 			return this.render(new UIHomeView(this.client.getState()))
+		}
+		else if (resource === 'favicon') {
+			return this.resource('/favicon/' + this.shiftPath())
 		}
 		else if (resource === 'device') {
 			const deviceId = this.shiftPath()
@@ -227,7 +256,8 @@ export default class Request {
 			})
 			this.request.on('end', () => {
 				try {
-					resolve(qs.parse(chunks.join('')))
+					const data = chunks.join('')
+					resolve(JSON.parse(data))
 				}
 				catch (error) {
 					resolve({})

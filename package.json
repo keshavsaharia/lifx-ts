@@ -5,6 +5,8 @@
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
 	"scripts": {
+		"browser-dev": "cd resource && tsc --watch",
+		"browser": "cd resource && tsc && terser -m -o js/lifx.min.js js/lifx.js",
 		"minify": "cd resource/js && terser -m -o lifx.min.js lifx.js",
 		"products": "cd data && wget https://raw.githubusercontent.com/LIFX/products/master/products.json"
 	},

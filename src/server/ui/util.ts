@@ -25,10 +25,35 @@ export function getValue(obj: { [key: string]: any }, key: string) {
 }
 
 export function getResource(type: string, name: string, minify?: boolean) {
-	const resourcePath = path.join(RESOURCE_DIR, type, name + (minify ? '.min.' : '.') + type)
+	let extension = path.extname(name)
+	if (! extension || extension.length == 0)
+		extension = '.' + type
+	if (minify)
+		extension = '.min' + extension
+
+	const resourcePath = path.join(RESOURCE_DIR, type, path.basename(name) + extension)
 	if (fs.existsSync(resourcePath))
 		return fs.readFileSync(resourcePath, 'utf-8')
 	return ''
+}
+
+export function getStaticResource(resourcePath: string) {
+	const staticPath = path.join(RESOURCE_DIR, resourcePath)
+	if (fs.existsSync(staticPath))
+		return fs.readFileSync(staticPath)
+	return undefined
+}
+
+export function getMimeType(resourcePath: string) {
+	const ext = path.extname(resourcePath)
+	if (ext === 'png') return 'image/png'
+	if (ext === 'svg') return 'image/svg'
+	if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg'
+	if (ext === 'ico') return 'image/x-icon'
+	if (ext === 'html') return 'text/html'
+	if (ext === 'css') return 'text/css'
+	if (ext === 'js') return 'text/js'
+	return 'text/plain'
 }
 
 export function isLightColor(color: any): color is LightColor {

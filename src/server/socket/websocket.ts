@@ -13,6 +13,7 @@ import {
 } from '../interface'
 
 import {
+	WebsocketHandshake,
 	InvalidWebsocketMessage
 } from '../error'
 
@@ -23,6 +24,7 @@ import {
 export default class Websocket extends Socket {
 	request: http.IncomingMessage
 	upgraded: boolean
+	listener?: (chunk: any) => void
 
 	// Queue for joining incoming message buffers with continuation frames
 	payload: Array<Buffer>
@@ -34,14 +36,22 @@ export default class Websocket extends Socket {
 		this.payload = []
 	}
 
-	handshake() {
+	async start() {
+		await this.handshake()
+		return this.listen()
+	}
+
+	/**
+	 * Upgrades the socket and returns true if the request succeeded
+	 */
+	async handshake(): Promise<boolean> {
 		const upgrade = this.getHeader('upgrade')
 		if (upgrade !== 'websocket')
-			return this.stop()
+			return this.stop(WebsocketHandshake)
 
 		const key = this.getHeader('sec-websocket-key')
 		if (! key || Array.isArray(key))
-			return this.stop()
+			return this.stop(WebsocketHandshake)
 
 		this.socket.write([
 			'HTTP/1.1 101 Web Socket Protocol Handshake',
@@ -56,25 +66,38 @@ export default class Websocket extends Socket {
 	}
 
 	listen() {
-		this.socket.on('data', (buffer) => {
+		if (this.listener)
+			return this
+
+		this.socket.on('data', this.listener = (buffer) => {
 			this.upgraded = true
 			this.receive(buffer).then((reply) => {
 				if (reply)
 					  this.socket.write(reply)
 			})
 			.catch((error) => {
-				console.log('websocket error', error)
-				return this.stop()
-			})
-			.then((closed) => {
-				console.log('closed', closed)
+				this.stop()
 			})
 		})
+
+		return this
+	}
+
+	/**
+	 * Remove listener on stop
+	 */
+	async stop(error?: any) {
+		if (this.listener) {
+			this.socket.off('data', this.listener)
+			this.listener = undefined
+		}
+		return super.stop(error)
 	}
 
 	private async receive(buffer: Buffer): Promise<Buffer | null> {
 		const message = this.parse(buffer)
-		console.log('message', message)
+		if (this.stopped)
+			return null
 		if (message)
 			return this.build(message)
 		return null
@@ -172,6 +195,7 @@ export default class Websocket extends Socket {
 		try {
 			const raw = buffer.toString('utf8')
 			const message = JSON.parse(raw)
+			console.log('message', message)
 			// TODO: validate message
 			return message
 		}

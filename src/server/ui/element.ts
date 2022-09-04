@@ -69,7 +69,7 @@ export default class UIElement {
 		html.push('>')
 		if (this.child)
 			html.push.apply(html, this.child.map((child) =>
-				((typeof child === 'string') ? child : child.render())))
+				((typeof child === 'string') ? child : (child instanceof UIElement ? child.render() : ''))))
 		html.push('</', this.tag, '>')
 		return html.join('')
 	}

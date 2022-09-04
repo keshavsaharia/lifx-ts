@@ -31,6 +31,7 @@ export function getKey(s: string) {
 	// escape key
 	else if (s === '\x1b' || s === '\x1b\x1b') {
 		key.name = 'escape'
+		key.exit = true
 		key.meta = (s.length === 2)
 	}
 	else if (s === ' ' || s === '\x1b ') {

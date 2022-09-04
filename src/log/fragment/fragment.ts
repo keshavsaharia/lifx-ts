@@ -1,6 +1,8 @@
 import {
 	LogContent,
-	LogConstraint
+	LogConstraint,
+	KeyHandler,
+	Keypress
 } from '../interface'
 
 import {
@@ -12,28 +14,51 @@ const EOL = '\n'
 const EMPTY = ''
 
 export default class LogFragment {
+	// Content in this fragment, and a flag for whether it changes
 	content: Array<LogContent>
-	fg?: number
+	static: boolean = true
+	focus: boolean = false
+
+	// Foreground/background color
+	fgColor?: number
 	fgBright?: boolean
-	bg?: number
+	bgColor?: number
 	bgBright?: boolean
+	keyHandler?: KeyHandler | null
+
+	// Cache generated output
+	cacheKeyHandler?: KeyHandler | null
 
 	constructor(...args: Array<LogContent>) {
 		this.content = args
 	}
 
-	repeat(str: string, times: number) {
-		this.content.push(repeated(str, times))
+	append<LF extends LogFragment>(cls: { new(): LF }): LF {
+		const instance = new cls()
+		this.add(instance)
+		return instance
+	}
+
+	text(content: LogContent) {
+		this.add(content)
 		return this
 	}
 
-	newLine() {
-		this.content.push('\n')
+	add(content: LogContent) {
+		this.content.push(content)
 		return this
 	}
 
-	renderIn(constraint: LogConstraint) {
-		const lines = this.render().split('\n')
+	addText(content?: LogContent) {
+		const text = new LogText()
+		if (content)
+			text.add(content)
+		this.content.push(text)
+		return text
+	}
+
+	render(constraint: LogConstraint) {
+		const lines = this.toString().split('\n')
 		const corner = constraint.corner || []
 		let border = constraint.border || []
 		let padding = constraint.padding || []
@@ -71,7 +96,7 @@ export default class LogFragment {
 			if (cropped.length < lineWidth)
 				output.push(repeated(SPACE, lineWidth - cropped.length))
 
-			output.push(padding[1] || EMPTY, border[1] || EMPTY)
+			output.push(padding[1] || EMPTY, border[1] || EMPTY, EOL)
 		})
 
 		if (padding[2])
@@ -82,14 +107,52 @@ export default class LogFragment {
 		return output.filter((s) => s.length > 0).join('')
 	}
 
-	render(): string {
+	addKey(name: string, handler: (key: Keypress) => Promise<any>) {
+		if (! this.keyHandler)
+			this.keyHandler = {}
+		this.keyHandler[name] = handler
+		return this
+	}
+
+	removeKey(name: string) {
+		if (this.keyHandler)
+			delete this.keyHandler[name]
+		return this
+	}
+
+	getKeyHandler(): KeyHandler | null {
+		if (this.cacheKeyHandler)
+			return this.cacheKeyHandler
+
+		const mergeHandler = (lf: LogFragment, base: KeyHandler | null) => {
+			const h = lf.getKeyHandler()
+			return (h != null) ? (base != null ? Object.assign(base, h) : h) : base
+		}
+
+		let handler: KeyHandler | null = this.keyHandler || null
+		if (this.content.length > 0) {
+			this.content.forEach((content) => {
+				if (Array.isArray(content))
+					content.forEach((c) => (handler = mergeHandler(c, handler)))
+				else if (content instanceof LogFragment)
+					handler = mergeHandler(content, handler)
+			})
+		}
+		return this.cacheKeyHandler = handler
+	}
+
+	/**
+	 * @func 	toString
+	 * @desc 	Converts the log fragment to an output string
+	 */
+	toString(): string {
 		const output: Array<string> = []
 		this.addANSI(output)
 		this.content.forEach((content) => {
 			if (Array.isArray(content))
-				output.push.apply(output, content.map((c) => c.render()))
+				output.push.apply(output, content.map((c) => c.toString()))
 			else if (content instanceof LogFragment)
-				output.push(content.render())
+				output.push(content.toString())
 			else
 				output.push(content)
 		})
@@ -97,35 +160,55 @@ export default class LogFragment {
 		return output.join('')
 	}
 
+	// Create the ANSI escape character
 	private addANSI(output: Array<string>) {
-		if (this.fg != null || this.bg != null) {
-			output.push('\033[',
-				(this.fg != null ? '' + (this.fg + (this.fgBright ? 60 : 0)) : ''),
-				this.bg != null ? ';' : '',
-				this.bg != null ? '' + (this.bg + (this.bgBright ? 60 : 0)) : '',
+		if (this.fgColor != null || this.bgColor != null) {
+			output.push('\u001b[',
+				(this.fgColor != null ? '' + (this.fgColor + (this.fgBright ? 60 : 0)) : ''),
+				this.bgColor != null ? ';' : '',
+				this.bgColor != null ? '' + (this.bgColor + (this.bgBright ? 60 : 0)) : '',
 			'm')
 		}
 	}
 
 	private terminateANSI(output: Array<string>) {
-		if (this.fg != null || this.bg != null)
+		if (this.fgColor != null || this.bgColor != null)
 			output.push('\x1b[0m')
 	}
 
+	repeat(str: string, times: number) {
+		this.content.push(repeated(str, times))
+		return this
+	}
+
+	newLine() {
+		this.content.push('\n')
+		return this
+	}
+
+	clear() {
+		this.content = []
+	}
+
 	private setColor(fg: number, bright?: boolean) {
-		this.fg = fg
+		this.fgColor = fg
 		this.fgBright = bright
 		return this
 	}
 
 	private setBackground(bg: number, bright?: boolean) {
-		this.bg = bg
+		this.bgColor = bg
 		this.bgBright = bright
 		return this
 	}
 
 	bright() {
 		this.fgBright = true
+		return this
+	}
+
+	brightBg() {
+		this.bgBright = true
 		return this
 	}
 
@@ -159,9 +242,18 @@ export default class LogFragment {
 	bgWhite() { 		return this.setBackground(37); 		 }
 	bgBrightWhite() { 	return this.setBackground(37, true); }
 
-	add(content: LogContent) {
-		this.content.push(content)
-		return this
+
+}
+
+class LogText extends LogFragment {
+
+	constructor() {
+		super()
+	}
+
+	text(content: LogContent) {
+		this.clear()
+		return super.text(content)
 	}
 
 }

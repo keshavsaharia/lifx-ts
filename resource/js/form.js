@@ -1,3 +1,31 @@
+class LifxForm {
+
+	constructor(form) {
+		this.form = form;
+		this.inputs = form.querySelectorAll('input')
+			.map((input) => new LifxInput(this, input));
+	}
+
+	submit() {
+
+	}
+}
+
+class LifxInput {
+
+	constructor(form, input) {
+		this.form = form
+		this.input = input
+
+		this.upgrade()
+	}
+
+	upgrade() {
+		
+	}
+
+}
+
 lifx.ready(function() {
 	var forms = document.querySelectorAll('form');
 	forms.forEach(upgradeForm);

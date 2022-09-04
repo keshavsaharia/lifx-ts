@@ -1,0 +1,29 @@
+{
+	"compilerOptions": {
+		"baseUrl": ".",
+		"outFile": "./js/lifx.js",
+		"noImplicitAny": false,
+        "strictNullChecks": true,
+        "allowJs": true,
+		"esModuleInterop": true,
+        "lib": [
+			"dom",
+            "es5",
+			"es2015.promise",
+			"es2015",
+			"ScriptHost"
+        ],
+		"module": "AMD",
+		"moduleResolution": "node",
+        "allowSyntheticDefaultImports": true,
+        "declaration": false,
+		"target": "es5",
+		"types": ["node"],
+		"typeRoots": [
+          "node_modules/@types"
+        ]
+	},
+	"include": [
+		"./ts/**/*"
+	]
+}

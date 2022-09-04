@@ -535,26 +535,39 @@ export default class LifxDevice {
 	}
 
 	private addWatcher(key: string, interval: number, update: () => Promise<any>): LifxDevice {
+		// Initialize watcher map if not yet initialized, and stop an existing
+		// watcher on this key if there already is one running
 		this.stopWatcher(key)
-		this.watcher[key] = setInterval(() => {
-			try {
-				update.call(this)
-			}
-			catch (error) {}
-		}, interval)
+		if (! this.watcher)
+			this.watcher = {}
+
+		// Start the watcher after a random delay between 0 and the interval length,
+		// to prevent overloading the device with bursts of packets, and add a small
+		// time offset to keep shifting packet load
+		setTimeout(function() {
+			if (! this.watcher)
+				return
+			this.watcher[key] = setInterval(() => {
+				try {
+					update.call(this)
+				}
+				catch (error) {}
+			}, interval + Math.round(Math.random() * 10 - 5))
+		}.call(this), Math.round(Math.random() * interval))
 		return this
 	}
 
 	private stopWatcher(key: string): LifxDevice {
-		if (this.watcher[key])
+		if (this.watcher && this.watcher[key])
 			clearInterval(this.watcher[key])
 		return this
 	}
 
 	stopMonitoring(): LifxDevice {
-		Object.keys(this.watcher).forEach((key) => {
-			clearInterval(this.watcher[key])
-		})
+		if (this.watcher)
+			Object.keys(this.watcher).forEach((key) => {
+				clearInterval(this.watcher[key])
+			})
 		this.handler = {}
 		return this
 	}

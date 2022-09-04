@@ -7,7 +7,7 @@ import {
 
 export default class Socket {
 	private id: string
-	private stopped: boolean
+	protected stopped: boolean
 
 	server: LifxServer
 	socket: stream.Duplex
@@ -23,14 +23,16 @@ export default class Socket {
 		if (this.stopped)
 			return true
 		this.stopped = true
+		// if (this.ended())
+		// 	return true
 
-		if (this.ended())
-			return true
-
-		return new Promise((resolve: (stopped: boolean) => any) => {
+		return new Promise((resolve: (stopped: boolean) => any, reject: (error: any) => any) => {
 			this.socket.end((error && error.toString) ? error.toString() : undefined, () => {
 				this.server.removeSocket(this)
-				resolve(true)
+				if (error)
+					reject(error)
+				else
+					resolve(true)
 			})
 		})
 	}

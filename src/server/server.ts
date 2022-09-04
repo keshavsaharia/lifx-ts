@@ -63,12 +63,15 @@ export default class LifxServer {
 		// Maintain socket mapping
 		this.socket = {}
 		this.server.on('connect', (_, socket) => {
-			this.addSocket(new Socket(this, socket))
+			this.addSocket(new TCPSocket(this, socket))
 		})
 
 		// WebSocket upgrade
 		this.server.on('upgrade', (request, socket) => {
-			this.addSocket(new Websocket(this, request, socket))
+			const ws = new Websocket(this, request, socket)
+			ws.start().then(() => {
+				this.addSocket(ws)
+			})
 		})
 
 		this.alive = true
@@ -85,7 +88,6 @@ export default class LifxServer {
 
 	removeSocket(socket: Socket) {
 		delete this.socket[socket.getId()]
-
 		console.log(this.socket)
 	}
 
