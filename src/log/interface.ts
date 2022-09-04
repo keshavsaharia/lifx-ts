@@ -11,3 +11,5 @@ export interface Keypress {
 	sequence?: string
 	exit?: boolean
 }
+
+export * from './fragment/interface'

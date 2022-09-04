@@ -8,9 +8,10 @@ async function main() {
 	await client.start()
 	await client.startServer()
 	await client.discover()
+	client.monitor(5000)
 
 	// Start interactive logging
-	// client.log.interactive()
+	client.log.interactive()
 
 	client.onConnect((device) => device.load())
 

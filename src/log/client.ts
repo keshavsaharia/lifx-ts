@@ -11,12 +11,12 @@ import LogEmitter from './emitter'
 
 export default class ClientLogEmitter extends LogEmitter {
 	client: LifxClient
-	test: Array<Keypress>
+
+	selected = 1
 
 	constructor(client: LifxClient) {
 		super()
 		this.client = client
-		this.test = []
 	}
 
 	render(): KeyHandler {
@@ -24,14 +24,15 @@ export default class ClientLogEmitter extends LogEmitter {
 		console.log('┏━━━━━━━━━━━━━━━━━')
 		console.log('┃')
 		console.log('┣━━━━━━━━━━━━━━━━━')
+		console.log('selected: ' + this.selected)
 		console.log('┗━━━━━━━━━━━━━━━━━')
 
 		return {
-			a: async (k) => {
-				this.test.push(k)
+			up: async (k) => {
+				this.selected++
 			},
-			b: async (k) => {
-				this.test.push(k)
+			down: async (k) => {
+				this.selected--
 			}
 		}
 	}

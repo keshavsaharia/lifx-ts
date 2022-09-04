@@ -15,7 +15,6 @@ export default async function createSocket(port: number, message: (buffer: Buffe
 		})
 
 		udp.once('close', () => {
-			console.log('closing socket')
 			udp.off('message', message)
 		})
 

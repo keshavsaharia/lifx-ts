@@ -1,11 +1,6 @@
-type LogContent = Array<LogFragment> | LogFragment | string
-
-interface LogConstraint {
-	width: number
-	border?: Array<string>
-	padding?: Array<number>
-	corner?: Array<string>
-}
+import {
+	LogContent
+} from '../interface'
 
 export default class LogFragment {
 	content: Array<LogContent>

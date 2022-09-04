@@ -287,8 +287,7 @@ export default class LifxClient {
 	}
 
 	removeDevice(device: LifxDevice): LifxDevice | null {
-		return this.removeDeviceIndex(
-			this.devices.findIndex((d) => (d == device)))
+		return this.removeDeviceIndex(this.devices.findIndex((d) => (d == device)))
 	}
 
 	private removeDeviceIndex(index: number) {
@@ -297,7 +296,11 @@ export default class LifxClient {
 
 		const device = this.devices.splice(index, 1)[0]
 		delete this.device[device.getMacAddress()]
+
+		// Stop any watchers and queued packets to the device
 		device.stopMonitoring()
+		this.queue = this.queue.filter((enqueued) => enqueued.device != device)
+
 		this.emit('disconnect', device)
 		return device
 	}
@@ -324,16 +327,18 @@ export default class LifxClient {
 		if (! this.alive)
 			return
 
-		// Get a list of all device MAC addresses that responded to the ping
-		// TODO: switch to sequential ping of devices to prevent overloading queue
-		const responses = await Promise.all(this.devices.map((device) => device.ping(timeout)))
-		const pong = new Set<string>(responses.filter((r) => (r != null)) as Array<string>)
+		// Iterate over devices and add check in case array changes
+		const now = Date.now()
+		for (let i = 0 ; i < this.devices.length ; i++) {
+			const device = this.devices[i]
+			if (! device) continue
 
-		// Remove all devices that did not respond
-		this.devices.forEach((device) => {
-			if (! pong.has(device.getMacAddress()))
+			const pong = await device.ping(timeout)
+			if (! pong) {
 				this.removeDevice(device)
-		})
+				i--
+			}
+		}
 	}
 
 	on(event: Array<string> | string, handler: LifxDeviceHandler) {

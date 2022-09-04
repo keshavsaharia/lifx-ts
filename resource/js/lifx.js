@@ -2,6 +2,7 @@ class LifxClient {
 
     constructor() {
         this.alive = false;
+		this.ws = null;
     }
 
     ready(callback) {
@@ -24,17 +25,21 @@ class LifxClient {
 
 	connect() {
 		try {
-			var ws = new WebSocket('ws://' + window.location.host, ['json']);
-			ws.addEventListener('open', () => {
+			this.ws = new WebSocket('ws://' + window.location.host, ['json']);
+			this.ws.addEventListener('open', () => {
 				ws.send(JSON.stringify({ hey: 'there' }));
 			});
-			ws.addEventListener('message', (message) => {
+			this.ws.addEventListener('message', (message) => {
 				console.log(message.data);
 			});
 		}
 		catch (error) {
 			console.log(error)
 		}
+	}
+
+	receive(message) {
+
 	}
 }
 
