@@ -6,8 +6,11 @@ import {
 async function main() {
 	const client = new LifxClient()
 	await client.start()
-	// await client.startServer()
+	await client.startServer()
 	await client.discover()
+
+	// Start interactive logging
+	// client.log.interactive()
 
 	client.onConnect((device) => device.load())
 

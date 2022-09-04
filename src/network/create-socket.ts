@@ -14,10 +14,13 @@ export default async function createSocket(port: number, message: (buffer: Buffe
 			reject(error)
 		})
 
-		// Pass incoming messages to the client handler
-		udp.on('message', (buffer, info) => {
-			message(buffer, info)
+		udp.once('close', () => {
+			console.log('closing socket')
+			udp.off('message', message)
 		})
+
+		// Pass incoming messages to the client handler
+		udp.on('message', message)
 
 		// Bind the socket to start
 		udp.bind({ port })

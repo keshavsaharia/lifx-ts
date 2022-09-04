@@ -44,6 +44,14 @@ export default class ClientLogEmitter extends LogEmitter {
 		console.log('Stopping client')
 	}
 
+	startServer(alive?: boolean) {
+		console.log('Starting server', alive)
+	}
+
+	stopServer(alive?: boolean) {
+		console.log('Stopping server')
+	}
+
 	alive() {
 		// this.message(this.red('hey'))
 	}

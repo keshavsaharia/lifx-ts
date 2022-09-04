@@ -555,7 +555,6 @@ export default class LifxDevice {
 		Object.keys(this.watcher).forEach((key) => {
 			clearInterval(this.watcher[key])
 		})
-		this.watcher = {}
 		this.handler = {}
 		return this
 	}

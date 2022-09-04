@@ -64,6 +64,7 @@ export default class LifxClient {
 	// Network interface and socket
 	private network: Array<LifxNetworkInterface>
 	private udp: dgram.Socket
+	private udpListener: Function
 	private port: number
 	private alive: boolean
 	private monitoring?: NodeJS.Timer
@@ -116,12 +117,9 @@ export default class LifxClient {
 		this.alive = true
 		this.log.startClient(true)
 
-		// Start interactive logging
-		this.log.interactive()
-
 		// Listen to shutdown signals and close the socket
-		process.on('SIGTERM', () => this.stop())
-        process.on('SIGINT', () => this.stop())
+		process.on('SIGTERM', () => this.stop(true))
+        process.on('SIGINT', () => this.stop(true))
 
 		return this
 	}
@@ -143,7 +141,7 @@ export default class LifxClient {
 	 * @desc 	Stops the UDP socket and any periodic monitors.
 	 * @returns {Promise<boolean>} true if shutdown process succeeded or in progress
 	 */
-	async stop(): Promise<boolean> {
+	async stop(force?: boolean): Promise<boolean> {
 		// Ensure function is only called once
 		if (! this.udp || ! this.alive)
 			return true
@@ -151,12 +149,7 @@ export default class LifxClient {
 
 		this.log.stopClient()
 		if (this.server)
-			try {
-				await this.server.stop()
-			}
-			catch (error) {
-				console.log('server', error)
-			}
+			await this.server.stop()
 
 		// Clear queue and dequeuing process
 		this.queue = []
@@ -165,7 +158,9 @@ export default class LifxClient {
 
 		// Stop monitoring intervals
 		this.stopMonitoring()
-		await Promise.all(this.devices.map((device) => device.stopMonitoring()))
+		this.devices.forEach((device) => {
+			device.stopMonitoring()
+		})
 
 		// Close and/or unref the UDP socket
 		const stopped = await new Promise((resolve: (stopped: boolean) => any) => {
@@ -187,7 +182,7 @@ export default class LifxClient {
 		})
 
 		// Close process if any resources left hanging
-		if (stopped)
+		if (stopped || force)
 			process.exit(0)
 		return stopped
 	}

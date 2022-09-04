@@ -38,6 +38,9 @@ export const LIFX_ADDRESSABLE = 1
 export const LIFX_ORIGIN = 0
 export const LIFX_UDP_SERVICE = 1
 
+export const CLIENT_CLOSE_TIMEOUT = 5000
+export const SERVER_CLOSE_TIMEOUT = 3000
+
 export const LIFX_STATE_KEYS = ['firmware', 'version', 'info', 'label', 'group', 'location', 'power', 'light', 'color', 'infrared']
 export const LIFX_FEATURES = ['hev', 'color', 'infrared', 'chain', 'matrix', 'relays', 'buttons', 'multizone', 'extended_multizone']
 
@@ -48,3 +51,4 @@ export const RATE_LIMIT = 10
 export const DEFAULT_TEMPERATURE = 2700
 
 export const BROADCAST_TARGET = '00:00:00:00:00:00'
+export const WS_GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'

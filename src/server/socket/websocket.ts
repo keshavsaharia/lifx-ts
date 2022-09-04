@@ -3,41 +3,45 @@ import crypto from 'crypto'
 import * as stream from 'stream'
 
 import {
+	LifxServer
+} from '../..'
+
+import Socket from './socket'
+
+import {
 	WebsocketMessage
-} from './interface'
+} from '../interface'
 
 import {
 	InvalidWebsocketMessage
-} from './error'
+} from '../error'
 
-const WS_GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
+import {
+	WS_GUID
+} from '../../constant'
 
-export default class LifxWebsocket {
+export default class Websocket extends Socket {
 	request: http.IncomingMessage
-	socket: stream.Duplex
 	upgraded: boolean
-	closed: boolean
 
 	// Queue for joining incoming message buffers with continuation frames
 	payload: Array<Buffer>
 
-	constructor(request: http.IncomingMessage, socket: stream.Duplex) {
+	constructor(server: LifxServer, request: http.IncomingMessage, socket: stream.Duplex) {
+		super(server, socket)
 		this.request = request
-		this.socket = socket
 		this.upgraded = false
-		this.closed = false
 		this.payload = []
 	}
 
 	handshake() {
-		console.log('handshaking')
 		const upgrade = this.getHeader('upgrade')
 		if (upgrade !== 'websocket')
-			return this.badRequest()
+			return this.stop()
 
 		const key = this.getHeader('sec-websocket-key')
 		if (! key || Array.isArray(key))
-			return this.badRequest()
+			return this.stop()
 
 		this.socket.write([
 			'HTTP/1.1 101 Web Socket Protocol Handshake',
@@ -48,20 +52,22 @@ export default class LifxWebsocket {
 			'\r\n'
 		].join('\r\n'))
 
-		console.log('shook hands')
+		return true
 	}
 
 	listen() {
 		this.socket.on('data', (buffer) => {
 			this.upgraded = true
-			console.log('received message')
 			this.receive(buffer).then((reply) => {
 				if (reply)
 					  this.socket.write(reply)
 			})
 			.catch((error) => {
-				this.badRequest()
-				console.log('websocket close', error)
+				console.log('websocket error', error)
+				return this.stop()
+			})
+			.then((closed) => {
+				console.log('closed', closed)
 			})
 		})
 	}
@@ -109,9 +115,9 @@ export default class LifxWebsocket {
 		const op = first & 0b00001111
 		// Termination frame or non-text frame
 		if (op === 0x8)
-			return this.disconnect()
+			return this.stop()
 		else if (op !== 0x1)
-			return this.disconnect()
+			return this.stop()
 
 		const second = buffer.readUInt8(1)
 		const masked = (second & 0b10000000) > 0
@@ -196,24 +202,11 @@ export default class LifxWebsocket {
 		}
 	}
 
-	disconnect() {
-		if (! this.closed) {
-			this.closed = true
-			this.socket.end()
-		}
-		return null
-	}
-
 	accept(key: string) {
 		return crypto.createHash('sha1').update(key + WS_GUID).digest('base64')
 	}
 
 	getHeader(name: string) {
 		return this.request.headers[name]
-	}
-
-	private badRequest() {
-		this.socket.end('HTTP/1.1 400 Bad Request')
-		return 400
 	}
 }

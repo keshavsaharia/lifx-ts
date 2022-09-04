@@ -13,6 +13,10 @@ import {
 	UIErrorView
 } from './ui'
 
+import {
+	ResourceNotFound
+} from './error'
+
 import http from 'http'
 import url from 'url'
 import qs from 'querystring'
@@ -32,6 +36,10 @@ export default class Request {
 		this.request = request
 		this.response = response
 		this.responded = false
+	}
+
+	static receive(client: LifxClient, request: http.IncomingMessage, response: http.ServerResponse): Request {
+		return new Request(client, request, response)
 	}
 
 	async respond() {
@@ -111,7 +119,8 @@ export default class Request {
 					return this.render(new UIGroupCreateView(this.client.getState(), groupId, isLocation))
 			}
 		}
-		else return this.render(new UIErrorView(this.client.getState()))
+		// else return this.render(new UIErrorView(this.client.getState()))
+		else throw ResourceNotFound
 	}
 
 	private async respondToPost() {
@@ -136,6 +145,7 @@ export default class Request {
 			}
 			else throw {}
 		}
+		else throw {}
 	}
 
 	private async respondToDevicePost(device: LifxDevice, key: string, data: { [key: string]: any }) {
@@ -274,6 +284,6 @@ export default class Request {
 	}
 
 	didRespond() {
-		return true
+		return this.responded
 	}
 }

@@ -1,43 +1,46 @@
 // Simple HTTP server from built-in modules
 import http from 'http'
-import { Socket } from 'net'
-import fs from 'fs'
-import path from 'path'
-import url from 'url'
-import querystring from 'querystring'
 
 import {
 	LifxClient,
-	ServerLogEmitter
+	ClientLogEmitter
 } from '..'
 
-import Request from './request'
-import Websocket from './websocket'
+import {
+	Request,
+	Socket,
+	TCPSocket,
+	Websocket
+} from '.'
 
 import {
-	LIFX_PORT
+	LIFX_PORT,
+	SERVER_CLOSE_TIMEOUT
 } from '../constant'
 
 /**
  * @class 	LifxServer
- * @desc 	Simple HTTP server for setting up a browser management interface
- * 			and REST API for communicating with devices.
+ * @desc 	HTTP server for setting up a browser management interface, managing websockets,
+ * 			and providing a REST API for communicating with devices.
  */
 export default class LifxServer {
+	// Server and connected socket mapping
 	server: http.Server
 	socket: { [id: string]: Socket }
-	websocket: { [id: string]: Websocket }
-	socketId: number = 0
 
+	// Lifx client reference
 	client: LifxClient
+
+	// Server state
 	port: number
 	alive: boolean
-	log: ServerLogEmitter
+
+	log: ClientLogEmitter
 
 	constructor(client: LifxClient) {
 		this.client = client
 		this.alive = false
-		this.log = new ServerLogEmitter(this, client)
+		this.log = client.log
 	}
 
 	async start(port?: number) {
@@ -50,8 +53,7 @@ export default class LifxServer {
 					response.writeHead(200).end('No response')
 			})
 			.catch((error) => {
-				if (! req.didRespond())
-					response.writeHead(500).end()
+				response.writeHead(error.status || 500).end()
 			})
 		})
 
@@ -60,23 +62,13 @@ export default class LifxServer {
 
 		// Maintain socket mapping
 		this.socket = {}
-		this.server.on('connection', (socket) => {
-			// Generate new string ID for this socket
-			const id = this.getSocketId()
-			this.socket[id] = socket
-
-			// Remove the socket when it closes
-			socket.on('close', () => {
-				delete this.socket[id]
-			})
+		this.server.on('connect', (_, socket) => {
+			this.addSocket(new Socket(this, socket))
 		})
 
 		// WebSocket upgrade
 		this.server.on('upgrade', (request, socket) => {
-
-			const ws = new Websocket(request, socket)
-			ws.handshake()
-			ws.listen()
+			this.addSocket(new Websocket(this, request, socket))
 		})
 
 		this.alive = true
@@ -87,28 +79,52 @@ export default class LifxServer {
         process.on('SIGINT', () => this.stop())
 	}
 
-	async stop() {
+	private addSocket(socket: Socket) {
+		this.socket[socket.getId()] = socket
+	}
+
+	removeSocket(socket: Socket) {
+		delete this.socket[socket.getId()]
+
+		console.log(this.socket)
+	}
+
+	async stop(force?: boolean) {
 		if (! this.alive || ! this.server)
 			return true
 		this.alive = false
-		this.log.stopServer()
 
 		// Destroy open sockets
 		if (this.socket)
 			Object.keys(this.socket).forEach((id) => {
 				const socket = this.socket[id]
 				if (socket)
-					socket.destroy()
+					socket.stop()
 			})
 
 		return new Promise((resolve: (stopped: boolean) => any) => {
+
+			// Force close the server and destroy all sockets
+			const closeTimeout = setTimeout(() => {
+				this.server.unref()
+				Object.keys(this.socket).forEach((id) => {
+					const socket = this.socket[id]
+					if (socket)
+						socket.destroy()
+				})
+				resolve(false)
+			}, SERVER_CLOSE_TIMEOUT)
+
+			// Attempt to close all open connections gracefully
 			try {
 				this.server.close((error) => {
+					clearTimeout(closeTimeout)
 					this.server.unref()
 					resolve(error == null)
 				})
 			}
 			catch (error) {
+				clearTimeout(closeTimeout)
 				try {
 					this.server.unref()
 					resolve(true)
@@ -118,9 +134,5 @@ export default class LifxServer {
 				}
 			}
 		})
-	}
-
-	getSocketId() {
-		return this.socketId++ + ''
 	}
 }
