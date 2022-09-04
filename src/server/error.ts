@@ -16,6 +16,9 @@ function error(status: number, message?: string): ServerError {
 export const ResourceNotFound = error(404)
 
 export const InvalidRequest = error(401)
+export const InvalidRoute = error(404, 'Route not found')
+export const InvalidParameter = error(404, 'Invalid parameter')
+export const InternalRouter = error(500, 'Router configuration')
 
 export const WebsocketHandshake = error(401)
 export const InvalidWebsocketMessage = error(500)

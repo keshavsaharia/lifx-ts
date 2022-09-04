@@ -26,6 +26,8 @@ export default class LifxInput {
 			this.upgradeCheckbox()
 		else if (this.hasType('color'))
 			this.upgradeColor()
+		else
+			this.upgradeDefault()
 
 		this.input.addEventListener('change', function(e) {
 			this.submit()
@@ -46,11 +48,12 @@ export default class LifxInput {
 	}
 
 	upgradeColor() {
+		const handler = function(e) {
+			this.submit()
+		}.bind(this)
 
-	}
-
-	getField(): HTMLElement {
-		return this.input.parentElement as HTMLElement
+		this.input.addEventListener('input', handler)
+		this.input.addEventListener('change', handler)
 	}
 
 	upgradeCheckbox() {
@@ -60,8 +63,20 @@ export default class LifxInput {
 		slider.removeAttribute('onclick')
 		slider.addEventListener('click', function(e) {
 			this.input.checked = !this.input.checked
-			this.form.submit()
+			this.submit()
 		}.bind(this))
+	}
+
+	upgradeNumber() {
+		// TODO
+	}
+
+	upgradeDefault() {
+		this.input.addEventListener('change', this.submit.bind(this))
+	}
+
+	getField(): HTMLElement {
+		return this.input.parentElement as HTMLElement
 	}
 
 }

@@ -5,7 +5,8 @@ import qs from 'querystring'
 import {
 	Request,
 	Response,
-	RequestData
+	RequestData,
+	Route
 } from './interface'
 
 import {
@@ -16,6 +17,15 @@ import {
 	InvalidRequest
 } from '../error'
 
+export function routeMatch(route: Route, path: string) {
+	if (route.path == null)
+		return false
+	if (route.regex)
+		return new RegExp(route.path, route.caseSensitive ? '' : 'i')
+	else
+		return route.path === path
+}
+
 export function fromWebsocket(message: WebsocketMessage): Request {
 	const path = message.url.split('/').filter((p) => p.length > 0)
 
@@ -23,7 +33,8 @@ export function fromWebsocket(message: WebsocketMessage): Request {
 		method: message.method,
 		path,
 		query: {},
-		data: message.data
+		data: message.data,
+		json: true
 	}
 }
 
@@ -76,9 +87,12 @@ export async function fromHTTPRequest(request: http.IncomingMessage): Promise<Re
 	}
 }
 
-export function sendHTTPResponse(response: Response, res: http.ServerResponse) {
+export async function toHTTPResponse(response: Response, res: http.ServerResponse) {
 	let status = response.status || 200
-	const headers = {} as { [key: string]: string }
+	const headers = {
+		'Server': 'Lifx Server'
+		// TODO: CORS
+	} as { [key: string]: string }
 	if (response.redirect) {
 		status = 301
 		headers['Location'] = response.redirect
@@ -86,13 +100,19 @@ export function sendHTTPResponse(response: Response, res: http.ServerResponse) {
 	if (response.type) {
 		headers['Content-Type'] = response.type
 	}
-	if (response.close !== false) {
+	if (response.close) {
 		headers['Connection'] = 'close'
 	}
 
-	res.writeHead(200, {
-		'Connection': 'close',
-		...headers
+	return new Promise((resolve: (response: Response) => any) => {
+		res.writeHead(status, headers)
+		res.end(response.json ? JSON.stringify(response.json) : response.body, () => {
+			resolve(response)
+		})
 	})
-	this.response.end(response.body)
+
+}
+
+export function endHTTPResponse(res: http.ServerResponse, status?: number) {
+	res.writeHead(status || 500).end()
 }

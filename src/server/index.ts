@@ -1,10 +1,10 @@
-import Request from './request'
+import { LifxAppRouter } from './request'
 import Socket from './socket/socket'
 import TCPSocket from './socket/tcp'
 import Websocket from './socket/websocket'
 
 export {
-	Request,
+	LifxAppRouter,
 	Socket,
 	TCPSocket,
 	Websocket

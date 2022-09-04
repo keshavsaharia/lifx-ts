@@ -1,11 +1,11 @@
 import {
 	LifxRequest
-} from '..'
+} from '../..'
 
 export default class FaviconRequest extends LifxRequest {
 
 	respond() {
-		
+
 	}
 
 }

@@ -53,6 +53,8 @@ define("input", ["require", "exports"], function (require, exports) {
                 this.upgradeCheckbox();
             else if (this.hasType('color'))
                 this.upgradeColor();
+            else
+                this.upgradeDefault();
             this.input.addEventListener('change', function (e) {
                 this.submit();
             }.bind(this));
@@ -69,9 +71,11 @@ define("input", ["require", "exports"], function (require, exports) {
             return this.type === type;
         };
         LifxInput.prototype.upgradeColor = function () {
-        };
-        LifxInput.prototype.getField = function () {
-            return this.input.parentElement;
+            var handler = function (e) {
+                this.submit();
+            }.bind(this);
+            this.input.addEventListener('input', handler);
+            this.input.addEventListener('change', handler);
         };
         LifxInput.prototype.upgradeCheckbox = function () {
             var slider = this.getField().querySelector('.slider');
@@ -80,8 +84,17 @@ define("input", ["require", "exports"], function (require, exports) {
             slider.removeAttribute('onclick');
             slider.addEventListener('click', function (e) {
                 this.input.checked = !this.input.checked;
-                this.form.submit();
+                this.submit();
             }.bind(this));
+        };
+        LifxInput.prototype.upgradeNumber = function () {
+            // TODO
+        };
+        LifxInput.prototype.upgradeDefault = function () {
+            this.input.addEventListener('change', this.submit.bind(this));
+        };
+        LifxInput.prototype.getField = function () {
+            return this.input.parentElement;
         };
         return LifxInput;
     }());

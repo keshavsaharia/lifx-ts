@@ -137,10 +137,14 @@ export default class Websocket extends Socket {
 		const final = (first & 0b10000000) > 0
 		const op = first & 0b00001111
 		// Termination frame or non-text frame
-		if (op === 0x8)
-			return this.stop()
-		else if (op !== 0x1)
-			return this.stop()
+		if (op === 0x8) {
+			this.stop()
+			return null
+		}
+		else if (op !== 0x1) {
+			this.stop()
+			return null
+		}
 
 		const second = buffer.readUInt8(1)
 		const masked = (second & 0b10000000) > 0

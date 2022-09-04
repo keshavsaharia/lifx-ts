@@ -1,19 +1,10 @@
-import qs from 'querystring'
-
 import {
-	LifxClient,
-	LifxDevice
+	LifxClient
 } from '../..'
 
 import {
-	Websocket
-} from '..'
-
-import {
 	Request,
-	Response,
-	RequestData,
-	RequestQuery
+	Response
 } from './interface'
 
 import {
@@ -21,40 +12,33 @@ import {
 } from '../ui'
 
 import {
-	InvalidRequest,
 	ResourceNotFound
 } from '../error'
-
-import {
-	fromHTTPRequest,
-	sendHTTPResponse
-} from './util'
 
 import {
 	getStaticResource,
 	getMimeType
 } from '../ui/util'
 
-export default abstract class LifxRequest {
-	client: LifxClient
-	method: string
-	path: Array<string>
-	query: RequestQuery
-	data?: RequestData
+export default abstract class LifxRequest<Param> {
+	protected client: LifxClient
+	protected request: Request
+	protected param?: Param
 
-	constructor(client: LifxClient, request: Request) {
+	// Response parameters
+	statusCode?: number
+
+	constructor(client: LifxClient, request: Request, param?: Param) {
 		this.client = client
-		this.method = request.method
-		this.path = request.path
-		this.query = request.query
-		this.data = request.data
+		this.request = request
+		this.param = param
 	}
 
-	abstract respond(): Promise<Response>
+	abstract respond(request: Request, param?: Param): Promise<Response>
 
 	protected shiftPath() {
-		if (this.path.length > 0)
-			return this.path.shift()
+		if (this.request.path.length > 0)
+			return this.request.path.shift()
 		return null
 	}
 

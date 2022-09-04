@@ -7,7 +7,7 @@ import {
 } from '..'
 
 import {
-	Request,
+	LifxAppRouter,
 	Socket,
 	TCPSocket,
 	Websocket
@@ -27,6 +27,7 @@ export default class LifxServer {
 	// Server and connected socket mapping
 	server: http.Server
 	socket: { [id: string]: Socket }
+	router: LifxAppRouter
 
 	// Lifx client reference
 	client: LifxClient
@@ -46,13 +47,12 @@ export default class LifxServer {
 	async start(port?: number) {
 		this.port = port || LIFX_PORT
 
-		this.server = http.createServer((request, response) => {
-			const req = new Request(this.client, request, response)
-			req.respond().then(() => {
-				if (! req.didRespond())
-					response.writeHead(200).end('No response')
-			})
-			.catch((error) => {
+		const router = this.router = new LifxAppRouter(this.client)
+		const server = this.server = http.createServer((request, response) => {
+			// Router should handle all errors and always produce a response,
+			// so just adds one error handler to the top-level Promise to ensure
+			// a response is always sent to every incoming request
+			router.routeHTTP(request, response).catch((error) => {
 				response.writeHead(error.status || 500).end()
 			})
 		})
