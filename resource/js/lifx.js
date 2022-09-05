@@ -28,7 +28,8 @@ define("form", ["require", "exports", "index"], function (require, exports, _1) 
                     object[key].push(value);
                 }
             });
-            this.client.send(this.action, object, function () {
+            console.log('submitting', this.action, object);
+            this.client.post(this.action, object, function () {
             });
         };
         return LifxForm;
@@ -148,24 +149,32 @@ define("client", ["require", "exports", "index"], function (require, exports, _2
                 _this.forms.push(new _2.LifxForm(_this, form));
             });
         };
-        LifxClient.prototype.send = function (url, data, callback) {
+        LifxClient.prototype.post = function (url, data, callback) {
+            return this.send('post', url, data, callback);
+        };
+        LifxClient.prototype.send = function (method, url, data, callback) {
             if (this.ws && this.upgraded)
                 this.ws.send(JSON.stringify({
-                    method: 'post',
+                    method: method,
                     url: url,
                     data: data
                 }));
             else
-                this.post(url, data, callback);
+                this.ajax(method, url, data, callback);
         };
-        LifxClient.prototype.post = function (url, data, callback) {
+        LifxClient.prototype.ajax = function (method, url, data, callback) {
             var xhr = new XMLHttpRequest();
-            xhr.open('POST', url);
+            xhr.open(method.toUpperCase(), url);
             xhr.setRequestHeader('Content-Type', 'application/json');
             xhr.onreadystatechange = function () {
                 if (xhr.readyState == 4) {
                     if (callback)
-                        callback();
+                        try {
+                            callback(JSON.parse(xhr.responseText));
+                        }
+                        catch (error) {
+                            callback(null, error);
+                        }
                 }
             };
             xhr.send(JSON.stringify(data));
@@ -176,11 +185,9 @@ define("client", ["require", "exports", "index"], function (require, exports, _2
                 this.ws.addEventListener('open', function () {
                     console.log('ws listening');
                     this.upgraded = true;
-                    this.ws.send(JSON.stringify({ hey: 'there' }));
                 }.bind(this));
                 this.ws.addEventListener('message', function (message) {
                     try {
-                        console.log('got', message.data);
                         this.receive(JSON.parse(message.data));
                     }
                     catch (error) {
@@ -193,7 +200,7 @@ define("client", ["require", "exports", "index"], function (require, exports, _2
             }
         };
         LifxClient.prototype.receive = function (message) {
-            console.log('got', message);
+            console.log('got', JSON.stringify(message, null, 4));
         };
         return LifxClient;
     }());

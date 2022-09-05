@@ -17,21 +17,33 @@ import {
 	InvalidRequest
 } from '../error'
 
-export function routeMatch(route: Route, path: string) {
-	if (route.path == null)
+export function routeMatch(route: Route<any>, path?: string): boolean {
+	if (route.path == null || path == null)
 		return false
 	if (route.regex)
-		return new RegExp(route.path, route.caseSensitive ? '' : 'i')
+		return path.match(new RegExp(route.path, route.caseSensitive ? '' : 'i')) != null
 	else
 		return route.path === path
 }
 
-export function fromWebsocket(message: WebsocketMessage): Request {
-	const path = message.url.split('/').filter((p) => p.length > 0)
+export function shiftRoute(request: Request) {
+	const first = request.token.splice(0, 1)[0]
+	if (first)
+		request.route.push(first)
+	return first
+}
 
+function tokenizeURL(url: string): Array<string> {
+	if (url == null) return []
+	return url.split('/').filter((p) => p.length > 0)
+}
+
+export function fromWebsocket(message: WebsocketMessage): Request {
 	return {
 		method: message.method,
-		path,
+		url: message.url,
+		token: tokenizeURL(message.url),
+		route: [],
 		query: {},
 		data: message.data,
 		json: true
@@ -45,11 +57,12 @@ export async function fromHTTPRequest(request: http.IncomingMessage): Promise<Re
 	const method = request.method.toLowerCase()
 
 	const target = url.parse(request.url)
-	if (! target.pathname)
+	const requestUrl = target.pathname
+	if (! requestUrl)
 		throw InvalidRequest
 
 	// Parse path name and query parameters
-	const path = target.pathname.split('/').filter((p) => p.length > 0)
+	const token = tokenizeURL(requestUrl)
 	const query = target.query ? qs.parse(target.query) : {}
 	Object.keys(query).forEach((k) => {
 		if (Array.isArray(query[k]))
@@ -80,7 +93,9 @@ export async function fromHTTPRequest(request: http.IncomingMessage): Promise<Re
 
 	return {
 		method,
-		path,
+		url: requestUrl,
+		token,
+		route: [],
 		data,
 		// Query object parsed to only strings
 		query: query as { [key: string]: string }
@@ -97,16 +112,20 @@ export async function toHTTPResponse(response: Response, res: http.ServerRespons
 		status = 301
 		headers['Location'] = response.redirect
 	}
+	if (response.json != null) {
+		headers['Content-Type'] = 'application/json'
+		response.body = JSON.stringify(response.json)
+	}
 	if (response.type) {
 		headers['Content-Type'] = response.type
 	}
-	if (response.close) {
+	if (response.close !== false) {
 		headers['Connection'] = 'close'
 	}
 
 	return new Promise((resolve: (response: Response) => any) => {
 		res.writeHead(status, headers)
-		res.end(response.json ? JSON.stringify(response.json) : response.body, () => {
+		res.end(response.body, () => {
 			resolve(response)
 		})
 	})
@@ -115,4 +134,12 @@ export async function toHTTPResponse(response: Response, res: http.ServerRespons
 
 export function endHTTPResponse(res: http.ServerResponse, status?: number) {
 	res.writeHead(status || 500).end()
+}
+
+export function toWebsocketMessage(request: Request, response: Response): WebsocketMessage {
+	return {
+		method: request.method,
+		url: request.url,
+		data: response.json || {}
+	}
 }

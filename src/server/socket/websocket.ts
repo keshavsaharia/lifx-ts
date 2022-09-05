@@ -71,16 +71,19 @@ export default class Websocket extends Socket {
 
 		this.socket.on('data', this.listener = (buffer) => {
 			this.upgraded = true
-			this.receive(buffer).then((reply) => {
-				if (reply)
-					  this.socket.write(reply)
-			})
-			.catch((error) => {
+			this.receive(buffer).catch((error) => {
+				console.log('receive error')
 				this.stop()
 			})
 		})
 
 		return this
+	}
+
+	send(message: WebsocketMessage) {
+		if (this.upgraded)
+			this.socket.write(this.build(message))
+		// TODO: queue outgoing messages
 	}
 
 	/**
@@ -94,12 +97,13 @@ export default class Websocket extends Socket {
 		return super.stop(error)
 	}
 
-	private async receive(buffer: Buffer): Promise<Buffer | null> {
+	private async receive(buffer: Buffer): Promise<any> {
 		const message = this.parse(buffer)
 		if (this.stopped)
 			return null
+
 		if (message)
-			return this.build(message)
+			return this.server.receiveMessage(message, this)
 		return null
 	}
 

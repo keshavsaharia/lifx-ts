@@ -5,16 +5,12 @@ import {
 } from '../..'
 
 import {
-	Websocket
-} from '..'
-
-import {
 	Request,
 	Response,
 	Router,
 	RequestClass,
-	WebsocketMessage,
-	isRouterRoute
+	RequestInstance,
+	WebsocketMessage
 } from '../interface'
 
 import {
@@ -22,32 +18,43 @@ import {
 	fromWebsocket,
 	toHTTPResponse,
 	endHTTPResponse,
-	routeMatch
+	toWebsocketMessage,
+	routeMatch,
+	shiftRoute
 } from './util'
 
 import {
-	InvalidRoute,
-	InternalRouter
+	InvalidParameter,
+	InvalidRouter,
+	InvalidRoute
 } from '../error'
 
-export default class LifxRouter<Param> {
+export default class LifxRouter<Param> implements RequestInstance<Param> {
 	client: LifxClient
 	schema: Router<Param>
 
-	constructor(client: LifxClient, schema: Router<Param>) {
+	constructor(client: LifxClient) {
 		this.client = client
+	}
+
+	define(schema: Router<Param>) {
 		this.schema = schema
+	}
+
+	parameter(id: string): Param {
+		throw InvalidParameter
 	}
 
 	async routeHTTP(req: http.IncomingMessage, res: http.ServerResponse): Promise<Response> {
 		try {
 			const request = await fromHTTPRequest(req)
-			const response = await this.routeRequest(request)
+			const response = await this.respond(request)
 			await toHTTPResponse(response, res)
 			return response
 		}
 		// Error handler if there was an error passed above the top-level router handler
 		catch (error) {
+			console.log('http error', error)
 			const response = {
 				status: error.status || 500,
 				body: error
@@ -63,85 +70,80 @@ export default class LifxRouter<Param> {
 		}
 	}
 
-	async routeWebsocket(message: WebsocketMessage, socket: Websocket): Promise<Response> {
-		try {
-			const request = fromWebsocket(message)
-			const response = await this.routeRequest(request)
-			return response
-		}
-		catch (error) {
-			return {
-				status: error.status || 500,
-				body: error
-			}
-		}
+	async routeWebsocket(message: WebsocketMessage): Promise<WebsocketMessage> {
+		const request = fromWebsocket(message)
+		const response = await this.respond(request)
+		return toWebsocketMessage(request, response)
 	}
 
-	private async route(request: Request): Promise<Response> {
-		const response = await this.routeRequest(request).catch((error) => {
+	async respond(request: Request, param?: Param): Promise<Response> {
+		if (! this.schema)
+			throw InvalidRouter
 
+		return this.route(request, param).catch((error) => {
+			if (this.schema.Error)
+				return this.execute(this.schema.Error, request, param)
 			throw error
 		})
-
-		return response
 	}
 
-	private async routeRequest(request: Request): Promise<Response> {
+	private async route(request: Request, param?: Param): Promise<Response> {
 		// Remove the first part of the path
-		const first = request.path.splice(0, 1)[0]
-		const isLast = (request.path.length == 0)
+		const token = shiftRoute(request)
 
-		// If there is a configured error handler, add a catch statement to
-		// returned promises to trigger the handler on request failure
-		const handleError: (promise: Promise<Response>) => Promise<Response> =
-			this.schema.ErrorHandler ?
-				(p) => p.catch((error) => {
-					request.error = error
-					return new this.schema.ErrorHandler!(this.client, request).respond(request)
-				}) : (p) => p;	// otherwise identity function
-
-		// If this is the end of the path
-		if (! first && this.schema.Request)
-			return new this.schema.Request(this.client, request).respond(request)
-
-		// If this is a parametrized request
-		else if (isLast && (this.schema.ParamRouter || this.schema.ParamRequest)) {
-			if (! this.schema.param)
-				throw InternalRouter
-
-			const param = this.schema.param(first)
-			if (this.schema.ParamRouter)
-				return new this.schema.ParamRouter(this.client, param).route(request)
-			else if (this.schema.ParamRequest)
-				return new this.schema.ParamRequest(this.client, request).respond(request)
+		// If there were no tokens in the stream (e.g. path is at /)
+		if (! token) {
+			// If there is a standard configured request handler
+			if (this.schema.Request)
+				return this.execute(this.schema.Request, request, param, this.schema.Error)
+			else if (this.schema.Error)
+				return this.execute(this.schema.Error, request, param)
 		}
 
-		// Iterate over all child routes in order
+		// If this is the end of the path and this router accepts the final token as a parameter ID
+		else if (request.token.length == 0 && this.schema.ParamRequest)
+			return this.execute(this.schema.ParamRequest, request, this.parameter(token), this.schema.Error)
+
+		// Iterate over all possible child routes in order
 		else if (this.schema.route) {
 			for (let i = 0 ; i < this.schema.route.length ; i++) {
 				const child = this.schema.route[i]
 
-				// If the path matches a route, execute the child router
-				if (routeMatch(child, first)) {
-					if (isRouterRoute(child))
-						return handleError(new child.Router(this.client).routeRequest(request))
-					else
-						return handleError(new child.Request(this.client, request).respond(request))
+				// If this is a parametrized route (i.e. token is an ID of the parameter value,
+				// then next token is matched against the path)
+				if (child.param && routeMatch(child, request.token[0])) {
+					const param = this.parameter(token)
+					shiftRoute(request)
+					return this.execute(child.Request, request, param, child.Error)
+				}
+
+				// If the path matches this route, pass the request to a child request or router instance.
+				else if (! child.param && routeMatch(child, token)) {
+					return this.execute(child.Request, request, param, child.Error)
 				}
 			}
 		}
 
-		// If there was no matching route, try to render the error handler, otherwise
-		// throw an error
-		if (this.schema.ErrorHandler) {
-			request.error = InvalidRoute
-			const error = new this.schema.ErrorHandler(this.client, request)
-			return error.respond(request)
+		// If there was no matching route, throw an invalid route error to the nearest error handler
+		throw {
+			...InvalidRoute,
+			...request
 		}
-		else throw InvalidRoute
 	}
 
-
-
+	private async execute<R>(
+			requestHandler: RequestClass<R>,
+			request: Request, requestParam?: R,
+			errorHandler?: RequestClass<any>
+		): Promise<Response> {
+		// Create a request handler with the optional parameter
+		return new requestHandler(this.client)
+			.respond(request, requestParam)
+			.catch((error) => {
+				if (errorHandler)
+					return new errorHandler(this.client).respond(request, requestParam)
+				throw error
+			})
+	}
 
 }

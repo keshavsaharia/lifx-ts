@@ -13,7 +13,7 @@ import {
 	UIDeviceListView
 } from '../../ui'
 
-export default class GetDeviceRequest extends LifxRequest<LifxDevice> {
+export default class LifxDeviceRequest extends LifxRequest<LifxDevice> {
 
 	protected getParam(id: string): LifxDevice | undefined {
 		if (this.client.hasDevice(id))
@@ -24,9 +24,11 @@ export default class GetDeviceRequest extends LifxRequest<LifxDevice> {
 	async respond(request: Request, device?: LifxDevice) {
 		const state = this.client.getState()
 
+		// Return the device state or list of devices as a JSON object
 		if (request.json)
 			return this.json(device ? device.state : { device: state.device })
 
+		// Render a device list or a specific device viewer
 		return device ? this.render(new UIDeviceView(state, device.state)) :
 					    this.render(new UIDeviceListView(state))
 	}

@@ -27,26 +27,35 @@ export default class LifxClient {
 		})
 	}
 
-	send(url: string, data: RequestData, callback?: ResponseHandler) {
+	post(url: string, data: RequestData, callback?: ResponseHandler) {
+		return this.send('post', url, data, callback)
+	}
+
+	send(method: string, url: string, data: RequestData, callback?: ResponseHandler) {
 		if (this.ws && this.upgraded)
 			this.ws.send(JSON.stringify({
-				method: 'post',
+				method,
 				url,
 				data
 			} as WebsocketMessage))
 		else
-			this.post(url, data, callback)
+			this.ajax(method, url, data, callback)
 	}
 
-    post(url: string, data: RequestData, callback?: ResponseHandler) {
+    ajax(method: string, url: string, data: RequestData, callback?: ResponseHandler) {
         var xhr = new XMLHttpRequest()
-        xhr.open('POST', url)
+        xhr.open(method.toUpperCase(), url)
 		xhr.setRequestHeader('Content-Type', 'application/json')
 
         xhr.onreadystatechange = function() {
             if (xhr.readyState == 4) {
                 if (callback)
-                    callback()
+                    try {
+						callback(JSON.parse(xhr.responseText))
+					}
+					catch (error) {
+						callback(null, error)
+					}
             }
         }
         xhr.send(JSON.stringify(data))
@@ -58,11 +67,9 @@ export default class LifxClient {
 			this.ws.addEventListener('open', function() {
 				console.log('ws listening')
 				this.upgraded = true
-				this.ws.send(JSON.stringify({ hey: 'there' }));
 			}.bind(this));
 			this.ws.addEventListener('message', function(message) {
 				try {
-					console.log('got', message.data)
 					this.receive(JSON.parse(message.data))
 				}
 				catch (error) {
@@ -76,7 +83,7 @@ export default class LifxClient {
 	}
 
 	receive(message: WebsocketMessage) {
-		console.log('got', message)
+		console.log('got', JSON.stringify(message, null, 4))
 	}
 }
 

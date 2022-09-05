@@ -14,6 +14,10 @@ import {
 } from '.'
 
 import {
+	WebsocketMessage
+} from './interface'
+
+import {
 	LIFX_PORT,
 	SERVER_CLOSE_TIMEOUT
 } from '../constant'
@@ -47,13 +51,15 @@ export default class LifxServer {
 	async start(port?: number) {
 		this.port = port || LIFX_PORT
 
-		const router = this.router = new LifxAppRouter(this.client)
-		const server = this.server = http.createServer((request, response) => {
-			// Router should handle all errors and always produce a response,
-			// so just adds one error handler to the top-level Promise to ensure
-			// a response is always sent to every incoming request
-			router.routeHTTP(request, response).catch((error) => {
-				response.writeHead(error.status || 500).end()
+		this.router = new LifxAppRouter(this.client)
+
+		// The app router should handle all errors and always produce a response,
+		// so just adds one error handler to the top-level Promise to ensure
+		// a response is always sent to every incoming request
+		this.server = http.createServer((request, response) => {
+			this.router.routeHTTP(request, response).catch((error: any) => {
+				console.log('unhandled', error)
+				response.writeHead((error && error.status) ? error.status : 500).end()
 			})
 		})
 
@@ -89,6 +95,19 @@ export default class LifxServer {
 	removeSocket(socket: Socket) {
 		delete this.socket[socket.getId()]
 		console.log(this.socket)
+	}
+
+	async receiveMessage(message: WebsocketMessage, socket: Websocket) {
+		try {
+			const reply = await this.router.routeWebsocket(message)
+			if (reply)
+				socket.send(reply)
+			return reply
+		}
+		catch (error) {
+			// send error to socket
+			throw error
+		}
 	}
 
 	async stop(force?: boolean) {

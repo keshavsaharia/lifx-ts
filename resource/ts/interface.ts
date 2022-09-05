@@ -1,5 +1,5 @@
 export type RequestData = { [key: string]: any }
-export type ResponseHandler = () => any
+export type ResponseHandler = (data: RequestData | null, error?: any) => any
 
 export interface WebsocketMessage {
 	method: 'get' | 'post'

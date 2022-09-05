@@ -34,7 +34,8 @@ export default class LifxForm {
 				object[key].push(value)
 			}
 		})
-		this.client.send(this.action, object, () => {
+		console.log('submitting', this.action, object)
+		this.client.post(this.action, object, () => {
 
 		})
 	}

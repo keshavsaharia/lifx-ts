@@ -93,7 +93,7 @@ export default abstract class LogEmitter {
 							console.log('no handler', key.name)
 						}
 					}
-					// If there is no  ignore the key
+					// If there is no keymap, ignore keys until an exit key is reached
 				}
 			}
 			catch (error) {
@@ -134,7 +134,7 @@ export default abstract class LogEmitter {
 		this.interruptKeypress()
 
 		const key = await new Promise((resolve: (char: Keypress | null) => any) => {
-			const interrupt = function() {
+			this.keypressInterrupt = function() {
 				process.stdin.removeListener('data', handler)
 				resolve(null)
 			}.bind(this);
@@ -149,9 +149,7 @@ export default abstract class LogEmitter {
 				}
 			}.bind(this)
 
-			this.keypressHandler = handler
-			this.keypressInterrupt = interrupt
-			process.stdin.on('data', handler)
+			process.stdin.on('data', this.keypressHandler = handler)
 		})
 
 		if (key) {

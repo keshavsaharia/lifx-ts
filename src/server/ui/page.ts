@@ -18,6 +18,9 @@ export default class UIPage extends UIElement {
 	}
 
 	private addFavicon() {
+		this.head.addNew('link').addAttr('rel', 'icon')
+				 .addAttr('type', 'image/x-icon')
+				 .addAttr('href', '/favicon/favicon.ico')
 		this.head.addNew('link').addAttr('rel', 'apple-touch-icon')
 				 .addAttr('size', '180x180')
 				 .addAttr('href', '/favicon/apple-touch-icon.png')

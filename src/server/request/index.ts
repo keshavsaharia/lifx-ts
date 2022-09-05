@@ -1,19 +1,19 @@
 import LifxRequest from './request'
-import LifxRouter from './router'
 import LifxAppRouter from './router/app'
 import LifxDeviceRouter from './router/device'
 
 import LifxDeviceRequest from './device/device'
 import LifxDevicePowerRequest from './device/power'
 
-import LifxHomeRequest from './get/home'
+import LifxHomeRequest from './static/home'
+import LifxFaviconRequest from './static/favicon'
 
 export {
 	LifxRequest,
-	LifxRouter,
 	LifxAppRouter,
 	LifxDeviceRouter,
 	LifxDeviceRequest,
 	LifxDevicePowerRequest,
-	LifxHomeRequest
+	LifxHomeRequest,
+	LifxFaviconRequest
 }

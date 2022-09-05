@@ -4,6 +4,7 @@ import {
 
 import {
 	Request,
+	RequestInstance,
 	Response
 } from './interface'
 
@@ -12,6 +13,7 @@ import {
 } from '../ui'
 
 import {
+	InvalidParameter,
 	ResourceNotFound
 } from '../error'
 
@@ -20,27 +22,18 @@ import {
 	getMimeType
 } from '../ui/util'
 
-export default abstract class LifxRequest<Param> {
+export default abstract class LifxRequest<Param> implements RequestInstance<Param> {
 	protected client: LifxClient
-	protected request: Request
-	protected param?: Param
 
-	// Response parameters
-	statusCode?: number
-
-	constructor(client: LifxClient, request: Request, param?: Param) {
+	constructor(client: LifxClient) {
 		this.client = client
-		this.request = request
-		this.param = param
+	}
+
+	parameter(id: string): Param {
+		throw InvalidParameter
 	}
 
 	abstract respond(request: Request, param?: Param): Promise<Response>
-
-	protected shiftPath() {
-		if (this.request.path.length > 0)
-			return this.request.path.shift()
-		return null
-	}
 
 	protected render(element: UIElement): Response {
 		return {
@@ -62,8 +55,7 @@ export default abstract class LifxRequest<Param> {
 
 	protected json(data: any): Response {
 		return {
-			type: 'application/json',
-			body: JSON.stringify(data)
+			json: data
 		}
 	}
 
@@ -76,8 +68,16 @@ export default abstract class LifxRequest<Param> {
 	protected notFound(error?: any): Response {
 		return {
 			status: 404,
-			type: 'application/json',
-			body: JSON.stringify(error || {})
+			json: error,
+			error
+		}
+	}
+
+	protected badRequest(error?: any): Response {
+		return {
+			status: 400,
+			json: error,
+			error
 		}
 	}
 

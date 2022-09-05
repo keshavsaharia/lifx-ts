@@ -2,15 +2,14 @@ import {
 	LifxClient
 } from '../..'
 
-import LifxRouter from './router'
-import LifxRequest from './request'
-
 export type RequestData = { [key: string]: any }
 export type RequestQuery = { [key: string]: string }
 
 export interface Request {
 	method: string
-	path: Array<string>
+	url: string
+	token: Array<string>
+	route: Array<string>
 	query: RequestQuery
 	data?: RequestData
 	// Whether to return JSON
@@ -31,53 +30,44 @@ export interface Response {
 	redirect?: string
 	// Close connection
 	close?: boolean
+	// Error
+	error?: any
 }
 
-export type RouterClass<Param> = {
-	new(client: LifxClient, param?: Param): LifxRouter<Param>
-}
 export type RequestClass<Param> = {
-	new(client: LifxClient, request: Request, param?: Param): LifxRequest<Param>
+	new(client: LifxClient): RequestInstance<Param>
 }
+export interface RequestInstance<Param> {
+	respond(request: Request, param?: Param): Promise<Response>
+	parameter(param: string): Param
+}
+
+export type RouteParam<Param> = (id: string) => Param | undefined
 
 export interface Router<Param> {
+	// Default route if not found
+	Request?: RequestClass<Param>
+
 	// If there is only one token left in the path
 	ParamRequest?: RequestClass<Param>
-	ParamRouter?: RouterClass<Param>
-	param?: (id: string) => Param | undefined
-
-	// Default route if not found
-	Request?: RequestClass<any>
 
 	// Error route
-	ErrorHandler?: RequestClass<any>
+	Error?: RequestClass<any>
 
 	// Routes
-	route?: Array<RequestRoute | RouterRoute>
+	route?: Array<Route<any>>
 }
 
-export interface Route {
+export interface Route<Param> {
 	// Route path name or descriptor
 	path?: string
 	regex?: boolean
 	caseSensitive?: boolean
 
-	// Whether this is a parameter route
-	param?: string
-}
+	// Whether to parametrize the router/request class
+	param?: boolean
 
-export function isRouterRoute(route: Route): route is RouterRoute {
-	return route.hasOwnProperty('router')
-}
-
-export interface RouterRoute extends Route {
-	Router: RouterClass<any>
-}
-
-export function isRequestRoute(route: Route): route is RequestRoute {
-	return route.hasOwnProperty('request')
-}
-
-export interface RequestRoute extends Route {
-	Request: RequestClass<any>
+	// Error route
+	Request: RequestClass<Param>
+	Error?: RequestClass<any>
 }

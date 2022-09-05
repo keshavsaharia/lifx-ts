@@ -6,19 +6,26 @@ import LifxRouter from '../router'
 
 import {
 	LifxDeviceRouter,
-	LifxHomeRequest
+	LifxHomeRequest,
+	LifxFaviconRequest
 } from '..'
 
 export default class LifxAppRouter extends LifxRouter<any> {
 
 	constructor(client: LifxClient) {
-		super(client, {
+		super(client)
+
+		this.define({
 			Request: LifxHomeRequest,
 
 			route: [
 				{
 					path: 'device',
-					Router: LifxDeviceRouter
+					Request: LifxDeviceRouter
+				},
+				{
+					path: 'favicon',
+					Request: LifxFaviconRequest
 				}
 			]
 		})
