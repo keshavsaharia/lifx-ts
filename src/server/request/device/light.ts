@@ -10,7 +10,7 @@ import {
 
 import {
 	getBoolean
-} from './util'
+} from '../util'
 
 export default class LifxDeviceLightRequest extends LifxRequest<LifxDevice> {
 

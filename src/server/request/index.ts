@@ -14,6 +14,9 @@ import LifxDeviceLightRequest from './device/light'
 
 // Group request handlers
 import LifxGroupRequest from './group/group'
+import LifxGroupPowerRequest from './group/power'
+import LifxGroupColorRequest from './group/color'
+import LifxGroupTemperatureRequest from './group/temperature'
 
 // Static paths
 import LifxHomeRequest from './static/home'
@@ -31,6 +34,9 @@ export {
 	LifxDeviceLightRequest,
 
 	LifxGroupRequest,
+	LifxGroupPowerRequest,
+	LifxGroupColorRequest,
+	LifxGroupTemperatureRequest,
 
 	LifxHomeRequest,
 	LifxFaviconRequest

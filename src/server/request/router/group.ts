@@ -6,7 +6,10 @@ import {
 import LifxRouter from '../router'
 
 import {
-	LifxGroupRequest
+	LifxGroupRequest,
+	LifxGroupPowerRequest,
+	LifxGroupColorRequest,
+	LifxGroupTemperatureRequest
 } from '..'
 
 import {
@@ -30,23 +33,23 @@ export default class LifxGroupRouter extends LifxRouter<DeviceGroup> {
 			ParamRequest: LifxGroupRequest,
 
 			// For posting data to the group
-			// route: [
-			// 	{
-			// 		path: 'power',
-			// 		param: true,
-			// 		Request: LifxDevicePowerRequest
-			// 	},
-			// 	{
-			// 		path: 'light',
-			// 		param: true,
-			// 		Request: LifxDeviceLightRequest
-			// 	},
-			// 	{
-			// 		path: 'color',
-			// 		param: true,
-			// 		Request: LifxDeviceColorRequest
-			// 	}
-			// ]
+			route: [
+				{
+					path: 'power',
+					param: true,
+					Request: LifxGroupPowerRequest
+				},
+				{
+					path: 'color',
+					param: true,
+					Request: LifxGroupColorRequest
+				},
+				{
+					path: 'temperature',
+					param: true,
+					Request: LifxGroupTemperatureRequest
+				}
+			]
 		})
 	}
 

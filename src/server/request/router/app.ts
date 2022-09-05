@@ -26,7 +26,7 @@ export default class LifxAppRouter extends LifxRouter<any> {
 				},
 				{
 					path: 'group',
-					Request: LifxGroupRouter,
+					Request: LifxGroupRouter
 				},
 				{
 					path: 'favicon',
