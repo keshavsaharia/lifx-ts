@@ -26,7 +26,7 @@ export default abstract class LogEmitter {
 
 	keypressHandler?: (data: Buffer) => any
 	keypressInterrupt?: () => any
-	keypressDecoder: StringDecoder
+	// keypressDecoder: StringDecoder
 
 	refreshTimeout?: NodeJS.Timeout
 	lastRefresh: number
@@ -34,9 +34,17 @@ export default abstract class LogEmitter {
 
 	constructor() {
 		this.lastRefresh = Date.now()
-		this.keypressDecoder = new StringDecoder('utf8')
+		// this.keypressDecoder = new StringDecoder('utf8')
 	}
 
+	out(content?: LogContent | number | boolean) {
+		if (this.interactiveMode)
+			this.triggerRefresh(true)
+		else if (Array.isArray(content))
+			console.log(content.map((c) => c.toString()).join(''))
+		else if (content != null)
+			console.log(content.toString())
+	}
 
 	//
 	// Interactive log output (default)
@@ -53,47 +61,71 @@ export default abstract class LogEmitter {
 	 */
 	abstract render(): KeyHandler | null
 
-	private async refresh(): Promise<Keypress | null> {
+	private async refresh(interruptKeypress?: boolean): Promise<Keypress | null> {
 		if (this.exiting || ! this.interactiveMode)
 			return null
 		this.lastRefresh = Date.now()
 
 		console.clear()
-		return this.getNextKeypress(this.render())
+		const map = this.render()
+		console.log('done rendering', map, interruptKeypress, this.keypressHandler != null)
+		if (interruptKeypress || ! this.keypressHandler)
+			return this.getNextKeypress(map)
+		return null
 	}
 
-	protected triggerRefresh() {
+	private triggerRefresh(interruptKeypress: boolean = false) {
+		this.interruptRefresh()
 
 		process.nextTick(function() {
 			const now = Date.now()
 			const sinceLastRefresh = now - this.lastRefresh
-			if (sinceLastRefresh >= REFRESH_RATE)
-				this.refresh()
+			if (sinceLastRefresh >= REFRESH_RATE) {
+				console.log('immediate refresh', interruptKeypress)
+				if (interruptKeypress)
+					this.interruptKeypress()
+				this.refresh(interruptKeypress)
+			}
 			else
-				this.refreshTimeout = setTimeout(this.refresh.bind(this), REFRESH_RATE - sinceLastRefresh)
-		}.bind(this))
+				this.refreshTimeout = setTimeout(function() {
+					console.log('delay refresh', interruptKeypress)
+					if (interruptKeypress)
+						this.interruptKeypress()
+					this.refresh(interruptKeypress)
+				}.bind(this), REFRESH_RATE - sinceLastRefresh)
+		}.bind(this, interruptKeypress))
 	}
 
 	private async getNextKeypress(map?: KeyHandler | null): Promise<Keypress | null> {
 		while (true) {
 			try {
 				const key = await this.getKeypress()
-				console.log('got key', key)
 				if (key) {
+					console.log('key', key)
 					// If the keypress is an escape sequence like Ctrl+C or Ctrl+Q
 					if (key.exit)
 						return null
 					else if (map) {
 						if (key.name && map[key.name]) {
-							await map[key.name].call(this, key)
-							this.triggerRefresh()
-							return key
+							try {
+								await map[key.name](key, this)
+								console.log('done map func')
+								this.triggerRefresh()
+								return key
+							}
+							catch (error) {
+								console.log('error', error)
+								return null
+							}
 						}
-						else {
-							console.log('no handler', key.name)
-						}
+						// else this.triggerRefresh()
 					}
 					// If there is no keymap, ignore keys until an exit key is reached
+					// else this.triggerRefresh()
+				}
+				else {
+					console.log('no key')
+					this.triggerRefresh()
 				}
 			}
 			catch (error) {
@@ -122,34 +154,44 @@ export default abstract class LogEmitter {
 	interruptKeypress() {
 		if (this.keypressInterrupt) {
 			this.keypressInterrupt()
-			this.keypressInterrupt = undefined
 		}
-		if (this.keypressHandler) {
+		else if (this.keypressHandler) {
 			process.stdin.removeListener('data', this.keypressHandler)
 			this.keypressHandler = undefined
 		}
 	}
 
 	async getKeypress(): Promise<Keypress | null> {
-		this.interruptKeypress()
+		// if (this.keypressInterrupt) {
+		// 	this.keypressInterrupt()
+		// }
 
 		const key = await new Promise((resolve: (char: Keypress | null) => any) => {
-			this.keypressInterrupt = function() {
-				process.stdin.removeListener('data', handler)
-				resolve(null)
-			}.bind(this);
-
+			const decoder = new StringDecoder('utf8')
 			const handler = function (data: Buffer) {
-				const char = this.keypressDecoder.write(data)
+				const char = decoder.write(data)
 				if (char) {
 					const key = getKey(char)
-					process.stdin.removeListener('data', handler)
-					this.keypressHandler = this.keypressInterrupt = undefined
-					resolve(key)
+					if (key) {
+						interrupt()
+						resolve(key)
+					}
 				}
 			}.bind(this)
 
-			process.stdin.on('data', this.keypressHandler = handler)
+			const interrupt = function() {
+				console.log('interrupt triggered')
+				this.keypressInterrupt = this.keypressHandler = undefined
+				process.stdin.removeListener('data', handler)
+			}.bind(this)
+
+			this.keypressInterrupt = function() {
+				interrupt()
+				resolve(null)
+			}.bind(this);
+
+			this.keypressHandler = handler
+			process.stdin.on('data', handler)
 		})
 
 		if (key) {

@@ -16,54 +16,43 @@ import {
 export default class ClientLogEmitter extends LogEmitter {
 	client: LifxClient
 
-	logState?: LogClientState
+	logState: LogClientState
 
 	selected = 1
 
 	constructor(client: LifxClient) {
 		super()
 		this.client = client
+		// Initialize interactive logger
+		this.logState = new LogClientState(client)
 	}
 
 	render(): KeyHandler | null {
-		// Initialize interactive logger
-		if (! this.logState)
-			this.logState = new LogClientState(this.client.getState())
-		else
-			this.logState.update(this.client.getState())
+		this.logState.update()
 
 		// Render client state
-		console.log(this.logState.render({
-			width: 80
-		}))
-		// console.clear()
-		// console.log('┏━━━━━━━━━━━━━━━━━')
-		// console.log('┃')
-		// console.log('┣━━━━━━━━━━━━━━━━━')
-		// console.log('selected: ' + this.selected)
-		// console.log('┗━━━━━━━━━━━━━━━━━')
-
+		console.log(this.logState.toString())
 		return this.logState.getKeyHandler()
 	}
 
 	startClient(alive?: boolean) {
-		console.log('Starting client', alive)
-		if (alive) {
-			this.interrupt()
-			this.triggerRefresh()
-		}
+		this.out('Client starting')
+		// if (alive) {
+		// 	this.interrupt()
+		// 	this.triggerRefresh()
+		// }
 	}
 
 	stopClient(alive?: boolean) {
-		console.log('Stopping client')
+		this.out('Client stopping')
 	}
 
 	startServer(alive?: boolean) {
-		console.log('Starting server', alive)
+		this.out('Server starting')
 	}
 
 	stopServer(alive?: boolean) {
-		console.log('Stopping server')
+		this.out('Server stopping')
 	}
 
 	alive() {

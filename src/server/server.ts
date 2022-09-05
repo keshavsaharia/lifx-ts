@@ -115,6 +115,7 @@ export default class LifxServer {
 			return true
 		this.alive = false
 
+		this.log.stopServer()
 		// Destroy open sockets
 		if (this.socket)
 			Object.keys(this.socket).forEach((id) => {

@@ -1,6 +1,7 @@
-export interface KeyHandler {
-	[name: string]: (key: Keypress) => Promise<any>
-}
+import LogEmitter from './emitter'
+
+export type KeyHandler = { [name: string]: KeypressHandler }
+export type KeypressHandler = (key: Keypress, emitter: LogEmitter) => Promise<any>
 
 export interface Keypress {
 	name?: string

@@ -1,1 +1,1 @@
-export const REFRESH_RATE = 40
+export const REFRESH_RATE = 100

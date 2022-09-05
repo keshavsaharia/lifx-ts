@@ -105,8 +105,8 @@ export async function fromHTTPRequest(request: http.IncomingMessage): Promise<Re
 export async function toHTTPResponse(response: Response, res: http.ServerResponse) {
 	let status = response.status || 200
 	const headers = {
-		'Server': 'Lifx Server'
-		// TODO: CORS
+		'Server': 'Lifx Server',
+		'Cache-Control': 'no-store'
 	} as { [key: string]: string }
 	if (response.redirect) {
 		status = 301

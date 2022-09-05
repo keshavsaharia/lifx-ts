@@ -1,6 +1,7 @@
+import crypto from 'crypto'
+
 import {
-	LifxClient,
-	LifxDevice
+	LifxClient
 } from '../../..'
 
 import LifxRouter from '../router'
@@ -16,20 +17,16 @@ import {
 	DeviceGroup
 } from '../../../interface'
 
-import {
-	InvalidParameter
-} from '../../error'
-
 export default class LifxGroupRouter extends LifxRouter<DeviceGroup> {
 
 	constructor(client: LifxClient) {
 		super(client)
 
-		// Define the routing logic for device requests
+		// Define the routing logic for group requests
 		this.define({
-			// Device request handler for base /device list
+			// Device request handler for base /group list
 			Request: LifxGroupRequest,
-			// Show specific device on /device/:id
+			// Show specific group on /group/:id
 			ParamRequest: LifxGroupRequest,
 
 			// For posting data to the group
@@ -57,7 +54,13 @@ export default class LifxGroupRouter extends LifxRouter<DeviceGroup> {
 		const group = this.client.getGroup(id)
 		if (group.length > 0)
 			return group[0].group!
-		throw InvalidParameter
+
+		// Create a new group
+		return {
+			id: crypto.randomBytes(16).toString('hex'),
+			label: 'New Group',
+			updated: Date.now()
+		}
 	}
 
 }

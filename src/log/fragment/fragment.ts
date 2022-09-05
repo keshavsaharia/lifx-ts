@@ -2,6 +2,7 @@ import {
 	LogContent,
 	LogConstraint,
 	KeyHandler,
+	KeypressHandler,
 	Keypress
 } from '../interface'
 
@@ -57,6 +58,15 @@ export default class LogFragment {
 		return text
 	}
 
+	addLine(content?: LogContent) {
+		const line = new LogFragment()
+		if (content)
+			line.add(content)
+		this.content.push(line)
+		this.content.push(EOL)
+		return line
+	}
+
 	render(constraint: LogConstraint) {
 		const lines = this.toString().split('\n')
 		const corner = constraint.corner || []
@@ -107,10 +117,10 @@ export default class LogFragment {
 		return output.filter((s) => s.length > 0).join('')
 	}
 
-	addKey(name: string, handler: (key: Keypress) => Promise<any>) {
+	addKey(name: string, handler: KeypressHandler) {
 		if (! this.keyHandler)
 			this.keyHandler = {}
-		this.keyHandler[name] = handler
+		this.keyHandler[name] = handler.bind(this)
 		return this
 	}
 
@@ -133,7 +143,10 @@ export default class LogFragment {
 		if (this.content.length > 0) {
 			this.content.forEach((content) => {
 				if (Array.isArray(content))
-					content.forEach((c) => (handler = mergeHandler(c, handler)))
+					content.forEach((c) => {
+						if (c instanceof LogFragment)
+							handler = mergeHandler(c, handler)
+					})
 				else if (content instanceof LogFragment)
 					handler = mergeHandler(content, handler)
 			})
@@ -151,10 +164,8 @@ export default class LogFragment {
 		this.content.forEach((content) => {
 			if (Array.isArray(content))
 				output.push.apply(output, content.map((c) => c.toString()))
-			else if (content instanceof LogFragment)
-				output.push(content.toString())
 			else
-				output.push(content)
+				output.push(content.toString())
 		})
 		this.terminateANSI(output)
 		return output.join('')

@@ -1,6 +1,6 @@
 import LogFragment from './fragment'
 
-export type LogContent = Array<LogFragment> | LogFragment | string
+export type LogContent = Array<LogFragment | string> | LogFragment | string
 
 export interface LogConstraint {
 	width: number

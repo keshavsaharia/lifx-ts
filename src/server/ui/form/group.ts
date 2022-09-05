@@ -19,9 +19,7 @@ export default class UIGroupForm<Result> extends UIForm<Result> {
 		this.device = device.filter((d) => (d.group && d.group.id == group.id))
 
 		// Add group/location classes
-		this.addClass(['group', 'group-' + schema.key])
-		if (group.location)
-			this.addClass(['location', 'location-' + schema.key])
+		this.addClass(group.location ? 'location' : 'group')
 
 		// Set the form action
 		this.addAction('/' + [ group.location ? 'location' : 'group', group.id, schema.key ].join('/'))
