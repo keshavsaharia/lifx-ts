@@ -2,6 +2,7 @@ export interface HSBColor {
 	hue: number
 	saturation: number
 	brightness: number
+	kelvin?: number
 }
 
 export interface LightColor extends HSBColor {

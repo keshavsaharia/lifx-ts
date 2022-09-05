@@ -7,7 +7,9 @@ import LifxRouter from '../router'
 
 import {
 	LifxDeviceRequest,
-	LifxDevicePowerRequest
+	LifxDevicePowerRequest,
+	LifxDeviceLightRequest,
+	LifxDeviceColorRequest
 } from '..'
 
 import {
@@ -32,6 +34,16 @@ export default class LifxDeviceRouter extends LifxRouter<LifxDevice> {
 					path: 'power',
 					param: true,
 					Request: LifxDevicePowerRequest
+				},
+				{
+					path: 'light',
+					param: true,
+					Request: LifxDeviceLightRequest
+				},
+				{
+					path: 'color',
+					param: true,
+					Request: LifxDeviceColorRequest
 				}
 			]
 		})

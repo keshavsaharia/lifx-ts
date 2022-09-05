@@ -14,13 +14,7 @@ import {
 } from '../../ui'
 
 export default class LifxDeviceRequest extends LifxRequest<LifxDevice> {
-
-	protected getParam(id: string): LifxDevice | undefined {
-		if (this.client.hasDevice(id))
-			return this.client.getDevice(id)
-		return undefined
-	}
-
+	
 	async respond(request: Request, device?: LifxDevice) {
 		const state = this.client.getState()
 

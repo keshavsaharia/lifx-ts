@@ -203,7 +203,6 @@ export default class Websocket extends Socket {
 		try {
 			const raw = buffer.toString('utf8')
 			const message = JSON.parse(raw)
-			console.log('message', message)
 			// TODO: validate message
 			return message
 		}

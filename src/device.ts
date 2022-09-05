@@ -33,12 +33,12 @@ import {
 	DeviceGroup,
 	DeviceLabel,
 	DeviceInfo,
+	HSBColor,
 	LightColor,
 	LightState,
 	LightPower,
 	LightInfrared,
 	LifxProduct,
-	LifxDeviceHandler,
 	LifxStateHandler,
 	DeviceState,
 	ResultObject
@@ -202,18 +202,25 @@ export default class LifxDevice {
 		return this
 	}
 
-	async setCSS(css: string, kelvin?: number) {
+	async setCSS(css: string, kelvin?: number, duration?: number) {
 		return this.setColor({
 			...CSStoHSB(css),
 			kelvin: kelvin || this.getTemperature()
-		})
+		}, duration)
 	}
 
-	async setRGB(r: number, g: number, b: number, a?: number, kelvin?: number) {
+	async setRGB(r: number, g: number, b: number, a?: number, kelvin?: number, duration?: number) {
 		return this.setColor({
 			...RGBtoHSB(r, g, b, a),
 			kelvin: kelvin || this.getTemperature()
-		})
+		}, duration)
+	}
+
+	async setHSB(color: HSBColor, duration?: number) {
+		return this.setColor({
+			kelvin: this.getTemperature(),
+			...color
+		}, duration)
 	}
 
 	async setColor(color: LightColor, duration?: number) {

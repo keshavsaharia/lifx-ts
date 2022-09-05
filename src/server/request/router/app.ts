@@ -6,6 +6,7 @@ import LifxRouter from '../router'
 
 import {
 	LifxDeviceRouter,
+	LifxGroupRouter,
 	LifxHomeRequest,
 	LifxFaviconRequest
 } from '..'
@@ -22,6 +23,10 @@ export default class LifxAppRouter extends LifxRouter<any> {
 				{
 					path: 'device',
 					Request: LifxDeviceRouter
+				},
+				{
+					path: 'group',
+					Request: LifxGroupRouter,
 				},
 				{
 					path: 'favicon',
