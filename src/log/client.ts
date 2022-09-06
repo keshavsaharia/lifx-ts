@@ -7,6 +7,10 @@ import {
 	KeyHandler
 } from './interface'
 
+import {
+	DeviceState
+} from '../interface'
+
 import LogEmitter from './emitter'
 
 import {
@@ -14,6 +18,7 @@ import {
 } from './fragment'
 
 export default class ClientLogEmitter extends LogEmitter {
+
 	client: LifxClient
 
 	logState: LogClientState
@@ -41,6 +46,18 @@ export default class ClientLogEmitter extends LogEmitter {
 		// 	this.interrupt()
 		// 	this.triggerRefresh()
 		// }
+	}
+
+	addDevice(device: DeviceState) {
+        this.out('Added device ' + device.ip)
+    }
+
+	loadDevice(device: DeviceState) {
+        this.out('Loaded device ' + device.ip)
+    }
+
+	removeDevice(device: DeviceState) {
+		this.out('Disconnected from device ' + device.ip)
 	}
 
 	stopClient(alive?: boolean) {

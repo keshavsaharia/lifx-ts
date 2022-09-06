@@ -21,7 +21,7 @@ export interface OptionSchema<Type> {
 	// Validation
 	defaultValue?: () => Type
 	replaceValue?: (value: Type) => Type
-	validate?: (value: Type) => boolean
+	validate?: (value: OptionType) => boolean
 }
 
 export interface StringSchema extends OptionSchema<string> {

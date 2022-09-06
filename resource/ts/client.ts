@@ -63,19 +63,22 @@ export default class LifxClient {
 
 	connect() {
 		try {
+			const client = this
 			this.ws = new WebSocket('ws://' + window.location.host, ['json']);
 			this.ws.addEventListener('open', function() {
-				console.log('ws listening')
-				this.upgraded = true
-			}.bind(this));
+				client.upgraded = true
+			});
+			this.ws.addEventListener('close', function() {
+				client.upgraded = false
+			})
 			this.ws.addEventListener('message', function(message) {
 				try {
-					this.receive(JSON.parse(message.data))
+					client.receive(JSON.parse(message.data))
 				}
 				catch (error) {
 					console.log('Invalid JSON', message.data)
 				}
-			}.bind(this));
+			});
 		}
 		catch (error) {
 			console.log('ws error', error)
@@ -83,7 +86,7 @@ export default class LifxClient {
 	}
 
 	receive(message: WebsocketMessage) {
-		console.log('got', JSON.stringify(message, null, 4))
+		// console.log('got', JSON.stringify(message, null, 4))
 	}
 }
 

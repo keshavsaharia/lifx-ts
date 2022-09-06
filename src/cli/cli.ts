@@ -2,6 +2,12 @@ import LifxStartCommand from './command/start'
 
 import LifxRouter from './router'
 
+import {
+	PORT_OPTIONS,
+	CLIENT_FLAGS,
+	CACHE_OPTION
+} from './option'
+
 export default class LifxCLI extends LifxRouter {
 
 	constructor() {
@@ -10,20 +16,9 @@ export default class LifxCLI extends LifxRouter {
 				start: LifxStartCommand
 			},
 			option: [
-				{
-					pattern: ['-p', '--port'],
-					key: 'port',
-					type: 'number',
-					name: 'Port',
-					description: 'Port to start UDP/TCP sockets on'
-				},
-				{
-					pattern: ['-s', '--serve'],
-					name: 'Server port',
-					description: 'Port to start application server on',
-					type: 'number',
-					key: 'server_port'
-				}
+				...PORT_OPTIONS,
+				...CLIENT_FLAGS,
+				CACHE_OPTION
 			]
 		})
 	}

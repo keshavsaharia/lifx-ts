@@ -43,6 +43,7 @@ export interface ClientState {
 	id: number
 	alive: boolean
 	queue?: number
+	network: Array<LifxNetworkInterface>
 	group: Array<DeviceGroup>
 	location: Array<DeviceGroup>
 	device: Array<DeviceState>

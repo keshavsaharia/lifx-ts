@@ -11,6 +11,10 @@ import LifxDeviceRequest from './device/device'
 import LifxDevicePowerRequest from './device/power'
 import LifxDeviceColorRequest from './device/color'
 import LifxDeviceLightRequest from './device/light'
+import LifxDeviceTemperatureRequest from './device/temperature'
+import LifxDeviceLabelRequest from './device/label'
+import LifxDeviceGroupRequest from './device/group'
+import LifxDeviceLocationRequest from './device/location'
 
 // Group request handlers
 import LifxGroupRequest from './group/group'
@@ -32,6 +36,10 @@ export {
 	LifxDevicePowerRequest,
 	LifxDeviceColorRequest,
 	LifxDeviceLightRequest,
+	LifxDeviceTemperatureRequest,
+	LifxDeviceLabelRequest,
+	LifxDeviceGroupRequest,
+	LifxDeviceLocationRequest,
 
 	LifxGroupRequest,
 	LifxGroupPowerRequest,

@@ -150,6 +150,7 @@ export default class LifxDevice {
 		}
 		this.cacheState()
 		this.client.emit('load', this)
+		this.client.log.loadDevice(this.state)
 		return this
 	}
 

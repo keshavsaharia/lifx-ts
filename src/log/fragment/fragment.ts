@@ -14,9 +14,13 @@ const SPACE = ' '
 const EOL = '\n'
 const EMPTY = ''
 
+import {
+	ANSI_REGEX
+} from '../constant'
+
 export default class LogFragment {
 	// Content in this fragment, and a flag for whether it changes
-	content: Array<LogContent>
+	content: Array<LogFragment | string>
 	static: boolean = true
 	focus: boolean = false
 
@@ -31,7 +35,8 @@ export default class LogFragment {
 	cacheKeyHandler?: KeyHandler | null
 
 	constructor(...args: Array<LogContent>) {
-		this.content = args
+		this.content = []
+		args.forEach((arg) => this.add(arg))
 	}
 
 	append<LF extends LogFragment>(cls: { new(): LF }): LF {
@@ -46,7 +51,15 @@ export default class LogFragment {
 	}
 
 	add(content: LogContent) {
-		this.content.push(content)
+		if (Array.isArray(content))
+			content.forEach((c) => {
+				if (Array.isArray(c))
+					this.add(c)
+				else
+					this.content.push(c)
+			})
+		else
+			this.content.push(content)
 		return this
 	}
 
@@ -54,7 +67,7 @@ export default class LogFragment {
 		const text = new LogText()
 		if (content)
 			text.add(content)
-		this.content.push(text)
+		this.add(text)
 		return text
 	}
 
@@ -62,8 +75,7 @@ export default class LogFragment {
 		const line = new LogFragment()
 		if (content)
 			line.add(content)
-		this.content.push(line)
-		this.content.push(EOL)
+		this.add(line).add(EOL)
 		return line
 	}
 
@@ -173,18 +185,26 @@ export default class LogFragment {
 
 	// Create the ANSI escape character
 	private addANSI(output: Array<string>) {
-		if (this.fgColor != null || this.bgColor != null) {
-			output.push('\u001b[',
-				(this.fgColor != null ? '' + (this.fgColor + (this.fgBright ? 60 : 0)) : ''),
-				this.bgColor != null ? ';' : '',
-				this.bgColor != null ? '' + (this.bgColor + (this.bgBright ? 60 : 0)) : '',
-			'm')
+		if (this.fgColor != null) {
+			output.push('\u001b[', this.fgColor.toString(), this.fgBright ? ';1' : '', 'm')
 		}
+		if (this.bgColor != null) {
+			output.push('\u001b[', this.bgColor.toString(), this.bgBright ? ';1' : '', 'm')
+		}
+		// if (this.fgColor != null || this.bgColor != null) {
+		// 	output.push('\u001b[',
+		// 		this.fgColor != null ? (this.fgColor + (this.fgBright ? 60 : 0)).toString() : '',
+		// 		this.bgColor != null ? ';' : '',
+		// 		this.bgColor != null ? (this.bgColor + (this.bgBright ? 60 : 0)).toString() : '',
+		// 	'm')
+		// }
 	}
 
 	private terminateANSI(output: Array<string>) {
 		if (this.fgColor != null || this.bgColor != null)
-			output.push('\x1b[0m')
+			output.push('\u001b[0m')
+		// if (this.bgColor != null)
+			// output.push('\u001b[0m')
 	}
 
 	repeat(str: string, times: number) {
@@ -238,25 +258,27 @@ export default class LogFragment {
 	white() { 			return this.setColor(37); 		}
 	brightWhite() { 	return this.setColor(37, true); }
 
-	bgRed() { 			return this.setBackground(31); 		 }
-	bgBrightRed() { 	return this.setBackground(31, true); }
-	bgGreen() { 		return this.setBackground(32); 		 }
-	bgBrightGreen() { 	return this.setBackground(32, true); }
-	bgYellow() { 		return this.setBackground(33); 		 }
-	bgBrightYellow() { 	return this.setBackground(33, true); }
-	bgBlue() { 			return this.setBackground(34); 		 }
-	bgBrightBlue() { 	return this.setBackground(34, true); }
-	bgMagenta() { 		return this.setBackground(35); 		 }
-	bgBrightMagenta() { return this.setBackground(35, true); }
-	bgCyan() { 			return this.setBackground(36); 		 }
-	bgBrightCyan() { 	return this.setBackground(36, true); }
-	bgWhite() { 		return this.setBackground(37); 		 }
-	bgBrightWhite() { 	return this.setBackground(37, true); }
+	bgRed() { 			return this.setBackground(41); 		 }
+	bgBrightRed() { 	return this.setBackground(41, true); }
+	bgGreen() { 		return this.setBackground(42); 		 }
+	bgBrightGreen() { 	return this.setBackground(42, true); }
+	bgYellow() { 		return this.setBackground(43); 		 }
+	bgBrightYellow() { 	return this.setBackground(43, true); }
+	bgBlue() { 			return this.setBackground(44); 		 }
+	bgBrightBlue() { 	return this.setBackground(44, true); }
+	bgMagenta() { 		return this.setBackground(45); 		 }
+	bgBrightMagenta() { return this.setBackground(45, true); }
+	bgCyan() { 			return this.setBackground(46); 		 }
+	bgBrightCyan() { 	return this.setBackground(46, true); }
+	bgWhite() { 		return this.setBackground(47); 		 }
+	bgBrightWhite() { 	return this.setBackground(47, true); }
 
 
 }
 
 class LogText extends LogFragment {
+	align?: 'left' | 'center' | 'right'
+	alignWidth?: number
 
 	constructor() {
 		super()
@@ -265,6 +287,75 @@ class LogText extends LogFragment {
 	text(content: LogContent) {
 		this.clear()
 		return super.text(content)
+	}
+
+	setAlign(align: 'left' | 'center' | 'right', width: number) {
+		this.align = align
+		this.alignWidth = width
+		return this
+	}
+
+	alignLeft(width: number) {
+		return this.setAlign('left', width)
+	}
+
+	alignCenter(width: number) {
+		return this.setAlign('center', width)
+	}
+
+	alignRight(width: number) {
+		return this.setAlign('right', width)
+	}
+
+	private trimContent(amount: number) {
+		let trim = amount
+		for (let i = this.content.length - 1 ; i >= 0 && trim > 0 ; i--) {
+			const str = this.content[i]
+			if (str instanceof LogText) {
+				trim -= str.trimContent(trim)
+			}
+			else if (typeof str === 'string') {
+				if (str.length < trim) {
+					this.content.splice(i, 1)
+					trim -= str.length
+				}
+				else {
+					this.content[i] = str.substring(0, trim)
+					return amount
+				}
+			}
+		}
+		return amount - trim
+	}
+
+	toString() {
+		let str = super.toString()
+		// Align the text without ANSI escapes
+		if (this.align && this.alignWidth) {
+			const raw = str.replace(ANSI_REGEX, '')
+
+			// Already at max width
+			if (raw.length > this.alignWidth) {
+				this.trimContent(raw.length - this.alignWidth)
+				return super.toString()
+			}
+
+			// Add a repeated sequence of space padding
+			const padding = this.alignWidth - raw.length
+			if (padding <= 0)
+				return str
+			else if (this.align === 'left')
+				this.content.push(repeated(SPACE, padding))
+			else if (this.align === 'right')
+				this.content.unshift(repeated(SPACE, padding))
+			else if (this.align === 'center') {
+				this.content.unshift(repeated(SPACE, Math.floor(padding / 2)))
+				this.content.push(repeated(SPACE, Math.ceil(padding / 2)))
+			}
+			return super.toString()
+		}
+
+		return str
 	}
 
 }

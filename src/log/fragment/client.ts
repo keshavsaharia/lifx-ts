@@ -10,14 +10,12 @@ import {
 	Keypress
 } from '../interface'
 
-import LogEmitter from '../emitter'
-
 export default class LogClientState extends LogFragment {
 	client: LifxClient
 
 	// Device list scroll position
 	scroll = {
-		device: 0,
+		device: -1,
 		page: 0
 	}
 	markers: Array<LogFragment>
@@ -38,9 +36,11 @@ export default class LogClientState extends LogFragment {
 	}
 
 	update() {
-		this.clear()
 		const state = this.client.getState()
+
+		this.clear()
 		const status = this.addText('client on ' + state.id)
+		this.newLine()
 		if (state.alive)
 			status.green().text('client connected')
 		else
@@ -48,20 +48,19 @@ export default class LogClientState extends LogFragment {
 
 		if (state.device)
 			state.device.forEach((device, index) => {
-				this.addLine([
-					index == this.scroll.device ? ' > ' : '   ',
+				const line = this.addLine([
 					device.label ? device.label.label : '',
 					' (', device.ip, ')'
 				])
+
+				if (index === this.scroll.device)
+					line.white().bgBlue()
 			})
 	}
 
 	async updateScroll(key: Keypress) {
 		const change = (key.name == 'up') ? -1 : 1
-		const nextIndex = this.scroll.device + change
-		if (nextIndex >= 0 && nextIndex < this.client.getDevices().length) {
-			this.scroll.device = nextIndex
-		}
+		this.scroll.device = Math.max(0, this.scroll.device + change)
 	}
 
 

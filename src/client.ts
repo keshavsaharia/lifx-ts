@@ -209,15 +209,19 @@ export default class LifxClient {
 	 * @desc 	Broadcast a discovery packet and initialize a connection to
 	 * 			devices that respond.
 	 */
-	async discover() {
+	async discover(loadDevice: boolean = false) {
 		await this.start()
 		const discovery = new DeviceDiscover()
 
 		// Create new LifxDevice instances from each unique IP that responds to the
 		// discovery packet
 		discovery.onResponse((response, payload) => {
-			if (! this.hasDevice(response))
-				this.addDevice(new LifxDevice(this, response.ip, response.mac, payload.port))
+			if (! this.hasDevice(response)) {
+				const device = new LifxDevice(this, response.ip, response.mac, payload.port)
+				this.addDevice(device)
+				if (loadDevice)
+					device.load()
+			}
 		})
 
 		// Broadcast the discover packet on all available network interfaces
@@ -272,6 +276,7 @@ export default class LifxClient {
 		return {
 			id: this.id,
 			alive: this.alive,
+			network: this.network,
 			queue: this.queue ? this.queue.length : 0,
 			group: this.getGroups(),
 			location: this.getLocations(),
@@ -282,6 +287,7 @@ export default class LifxClient {
 	addDevice(device: LifxDevice): LifxDevice {
 		this.devices.push(device)
 		this.device[device.getMacAddress()] = device
+		this.log.addDevice(device.getState())
 		this.emit('connect', device)
 		return device
 	}
@@ -296,6 +302,7 @@ export default class LifxClient {
 
 		const device = this.devices.splice(index, 1)[0]
 		delete this.device[device.getMacAddress()]
+		this.log.removeDevice(device.getState())
 
 		// Stop any watchers and queued packets to the device
 		device.stopMonitoring()
@@ -328,7 +335,6 @@ export default class LifxClient {
 			return
 
 		// Iterate over devices and add check in case array changes
-		const now = Date.now()
 		for (let i = 0 ; i < this.devices.length ; i++) {
 			const device = this.devices[i]
 			if (! device) continue

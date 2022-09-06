@@ -68,7 +68,6 @@ export default abstract class LogEmitter {
 
 		console.clear()
 		const map = this.render()
-		console.log('done rendering', map, interruptKeypress, this.keypressHandler != null)
 		if (interruptKeypress || ! this.keypressHandler)
 			return this.getNextKeypress(map)
 		return null
@@ -101,20 +100,19 @@ export default abstract class LogEmitter {
 			try {
 				const key = await this.getKeypress()
 				if (key) {
-					console.log('key', key)
 					// If the keypress is an escape sequence like Ctrl+C or Ctrl+Q
-					if (key.exit)
+					if (key.exit) {
+						console.clear()
 						return null
+					}
 					else if (map) {
 						if (key.name && map[key.name]) {
 							try {
 								await map[key.name](key, this)
-								console.log('done map func')
 								this.triggerRefresh()
 								return key
 							}
 							catch (error) {
-								console.log('error', error)
 								return null
 							}
 						}
@@ -140,8 +138,12 @@ export default abstract class LogEmitter {
 			return
 
 		this.exiting = true
-		this.interruptRefresh()
-		this.interruptKeypress()
+		if (this.interactiveMode) {
+			this.interruptRefresh()
+			this.interruptKeypress()
+			console.clear()
+		}
+
 	}
 
 	interruptRefresh() {
@@ -165,7 +167,6 @@ export default abstract class LogEmitter {
 		// if (this.keypressInterrupt) {
 		// 	this.keypressInterrupt()
 		// }
-
 		const key = await new Promise((resolve: (char: Keypress | null) => any) => {
 			const decoder = new StringDecoder('utf8')
 			const handler = function (data: Buffer) {
@@ -180,7 +181,6 @@ export default abstract class LogEmitter {
 			}.bind(this)
 
 			const interrupt = function() {
-				console.log('interrupt triggered')
 				this.keypressInterrupt = this.keypressHandler = undefined
 				process.stdin.removeListener('data', handler)
 			}.bind(this)

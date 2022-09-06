@@ -51,13 +51,29 @@ export default abstract class LifxCommand {
 		return this.option ? this.option[name] : undefined
     }
 
+	getString(option: string): string | undefined {
+		return this.option ? (this.option[option] as string) : undefined
+	}
+
+	getNumber(option: string): number | undefined {
+		return this.option ? (this.option[option] as number) : undefined
+	}
+
+	getFlag(option: string): boolean {
+		return this.option ? (this.option[option] === true) : false
+	}
+
 	private parseOptions(arg: Array<string>, inherited: ParsedOptions): ParsedOptions {
 		if (! this.schema.option)
 			return inherited
 
+		// Create a new option object
+		const option = { ...inherited }
+
+		// Create a map for searching registered option patterns
 		const pattern: { [p: string]: CLIOption } = {}
-		this.schema.option.forEach((option) => {
-			option.pattern.forEach((p) => (pattern[p] = option))
+		this.schema.option.forEach((schema) => {
+			schema.pattern.forEach((p) => (pattern[p] = schema))
 		})
 
         // Extract all arguments which start with an option pattern
@@ -65,12 +81,12 @@ export default abstract class LifxCommand {
 			const next = arg[0]
             const schema = pattern[next]
 			// If this was likely an option
-			if (next.startsWith(DASHES) || (next.length == 2 && next.startsWith(DASH))) {
+			if (next.startsWith(DASHES) || (next.length <= 3 && next.startsWith(DASH))) {
 				// TODO: find closest equivalent, better log
 				console.log('Invalid option ' + next)
 			}
 			if (! schema)
-				return this.option
+				break
 
 			// Remove only one arg if the option is a flag, otherwise get the value
 			// as the second spliced value (or undefined if not set)
@@ -78,18 +94,34 @@ export default abstract class LifxCommand {
 
             // If this is a key-value pair (--option value)
             if (schema.type == 'string')
-                this.option[schema.key] = value
+                option[schema.key] = value
             // If this is a key-value pair with a numeric value, parse the value as an integer
             else if (schema.type == 'number') {
 				const int = parseInt(value)
 				if (! isNaN(int))
-                	this.option[schema.key] = int
+                	option[schema.key] = int
             }
             // Boolean flags are always set to true
-            else this.option[schema.key] = true
+            else option[schema.key] = true
         }
 
-		return this.option
+		this.schema.option.forEach((schema) => {
+			let value: OptionType | undefined = option[schema.key]
+			// Validate option
+			if (value != null && schema.validate)
+				if (! schema.validate(value)) {
+					delete option[schema.key]
+					value = undefined
+				}
+
+			// Default value
+			if (value == null && schema.defaultValue)
+				option[schema.key] = schema.defaultValue()
+
+
+		})
+
+		return option
 	}
 
 

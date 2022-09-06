@@ -4,21 +4,34 @@ import {
 
 import LifxCommand from '../command'
 
+import {
+	PORT_OPTIONS,
+	CLIENT_FLAGS,
+	CACHE_OPTION
+} from '../option'
+
 export default class LifxStartCommand extends LifxCommand {
 
 	constructor() {
-		super()
+		super({
+			option: [
+				...PORT_OPTIONS,
+				...CLIENT_FLAGS,
+				CACHE_OPTION
+			]
+		})
 	}
 
 	async execute() {
 		const client = new LifxClient()
-		client.log.interactive()
+		if (this.getFlag('interactive'))
+			client.log.interactive()
 
-		await client.discover()
+		await client.start(this.getNumber('port'))
+		await client.discover(true)
 		client.monitor(10000)
 		client.startServer()
-
-		client.onConnect((device) => device.load())
+		
 		client.onLoad((device) => {
 			device.monitor(['power', 'color', 'light'])
 		})

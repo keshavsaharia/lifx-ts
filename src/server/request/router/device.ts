@@ -9,7 +9,11 @@ import {
 	LifxDeviceRequest,
 	LifxDevicePowerRequest,
 	LifxDeviceLightRequest,
-	LifxDeviceColorRequest
+	LifxDeviceColorRequest,
+	LifxDeviceTemperatureRequest,
+	LifxDeviceGroupRequest,
+	LifxDeviceLabelRequest,
+	LifxDeviceLocationRequest
 } from '..'
 
 import {
@@ -44,6 +48,26 @@ export default class LifxDeviceRouter extends LifxRouter<LifxDevice> {
 					path: 'color',
 					param: true,
 					Request: LifxDeviceColorRequest
+				},
+				{
+					path: 'temperature',
+					param: true,
+					Request: LifxDeviceTemperatureRequest
+				},
+				{
+					path: 'label',
+					param: true,
+					Request: LifxDeviceLabelRequest
+				},
+				{
+					path: 'group',
+					param: true,
+					Request: LifxDeviceGroupRequest
+				},
+				{
+					path: 'location',
+					param: true,
+					Request: LifxDeviceLocationRequest
 				}
 			]
 		})

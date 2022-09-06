@@ -72,7 +72,7 @@ export default class Websocket extends Socket {
 		this.socket.on('data', this.listener = (buffer) => {
 			this.upgraded = true
 			this.receive(buffer).catch((error) => {
-				console.log('receive error')
+				console.log('receive error', error)
 				this.stop()
 			})
 		})
