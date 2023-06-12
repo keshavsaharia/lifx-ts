@@ -1,36 +1,31 @@
 import {
-	Location
+	Location,
+	Dimension
 } from './interface'
 
 const SPACE = ' '
 
-export function cropLocation(
-	// Block parameters
-	location: Location,			// Location to crop
-	used: number,				// Space used in the location (if inline, total width used, otherwise height)
-	inline: boolean = false,	// Inline flag
-	wrap: boolean = false		// Whether text line wrapping is enabled (set cursor position instead of changing x)
-): Location {
-	if (inline) {
+export function cropLocation(location: Location, display: Dimension, offset: number): Location {
+	if (display.inline) {
 		// Get the new cursor and line from calculating lines wrapped
-		const length = ((location.cursor || 0) + used)
-		const cursor = wrap ? (length % location.width) : 0
-		const wrapped = wrap ? Math.floor(length / location.width) : 0
+		const startCursor = location.cursor || 0
+		const cursor = (startCursor + offset) % location.width
+		const wrapped = display.wrap ? Math.floor((startCursor + offset) / location.width) : 0
 
 		return {
 			cursor,
-			x: location.x + (wrap ? 0 : length),
+			x: location.x,
 			y: location.y + wrapped,
-			width: wrap ? location.width : Math.max(0, location.width - used),
+			width: display.wrap ? location.width : Math.max(0, location.width - cursor),
 			height: location.height - wrapped
 		}
 	}
 	else
 		return {
 			x: location.x,
-			y: location.y + used,
+			y: location.y + offset,
 			width: location.width,
-			height: Math.max(0, location.height - used)
+			height: Math.max(0, location.height - offset)
 		}
 }
 
@@ -70,4 +65,12 @@ export function lineWrap(text: string, location: Location): Array<string> {
 			cursor: 0
 		})
 	]
+}
+
+export function inlineRemaining(location: Location, offset: number = 0) {
+	return location.width - (((location.cursor || 0) + offset) % location.width)
+}
+
+export function inlineHeight(location: Location, offset: number = 0) {
+	return Math.ceil(((location.cursor || 0) + offset) / location.width)
 }

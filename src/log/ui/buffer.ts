@@ -6,8 +6,18 @@ import {
 const SPACE = ' '
 const DASH = '-'
 
+// Styles
+const BOLD = 		0b00000001
+const DIM = 		0b00000010
+const ITALIC = 		0b00000100
+const UNDERLINE = 	0b00001000
+const BLINK = 		0b00010000
+const STRIKE = 		0b00100000
+const INVERSE = 	0b01000000
+const CONCEAL = 	0b10000000
+
 import {
-	lineWrap
+	inlineRemaining
 } from './util'
 
 export default class LogBuffer {
@@ -23,48 +33,63 @@ export default class LogBuffer {
 	// Update bit
 	update: Array<Buffer>
 
-	constructor(size: Dimension) {
+	constructor(width: number, height: number) {
 		// One byte for the character
-		this.text = new Array(size.height || 0).map(() =>
-				  Buffer.alloc(size.width || 0, SPACE, 'utf8'))
-		this.size = size
+		this.size = { width, height }
+		this.text = new Array(height)
+		this.color = new Array(height)
+		this.background = new Array(height)
+		this.style = new Array(height)
+		this.update = new Array(height)
 
-		// One byte for color, background, and style
-		this.color = new Array(size.height|| 0).map(() => Buffer.alloc(size.width || 0))
-		this.background = new Array(size.height|| 0).map(() => Buffer.alloc(size.width || 0))
-		this.style = new Array(size.height || 0).map(() => Buffer.alloc(size.width || 0))
-
-		// Single bit for an update mask
-		this.update = new Array(size.height).map(() => Buffer.alloc(Math.ceil((size.width || 0) / 8)))
+		for (let y = 0 ; y < height ; y++) {
+			this.text[y] = Buffer.alloc(width, SPACE)
+			this.color[y] = Buffer.alloc(width)
+			this.background[y] = Buffer.alloc(width)
+			this.style[y] = Buffer.alloc(width)
+			this.update[y] = Buffer.alloc(Math.ceil(width / 8))
+		}
 	}
 
-	write(text: string, location: Location, wrap: boolean = false) {
+	write(text: string, location: Location, display: Dimension): number {
+		console.log('writing', text, location, display)
 		const output = this.text[location.y]
 		const update = this.update[location.y]
 		if (! output || ! update || location.x >= output.length)
-			return
+			return 0
 
 		// Number of characters available on this line
+		const x = location.x
+		const y = location.y
+		// const width = location.width
 		const cursor = (location.cursor || 0)
 		const available = location.width - cursor
 
-		// Wrap to the next line
-		if (text.length > available && wrap) {
-			const lines = lineWrap(text, location)
-			LogBuffer.updateString(output, update, lines[0], location.x + cursor)
+		// If the text can be wrapped to the next line
+		if (display.wrap && text.length > available) {
+			// Get an array of lines to wrap, and remove any overflow
+			const wrapped = location.wrap || LogBuffer.lineWrap(text, location)
+			wrapped.splice(location.height)
 
-			for (let l = 1 ; l < lines.length ; l++) {
-				const lineOutput = this.text[location.y + l]
-				const lineUpdate = this.update[location.y + l]
-				LogBuffer.updateString(lineOutput, lineUpdate, lines[l], location.x)
-			}
+			// Write the first line at the cursor position
+			LogBuffer.updateString(output, update, wrapped[0], x + cursor)
+			// Write subsequent wrapped lines at starting cursor position
+			for (let line = 1 ; line < wrapped.length ; line++)
+				LogBuffer.updateString(this.text[y + line], this.update[y + line], wrapped[line], x)
+			// Return the bytes written to calculate the next cursor position
+			if (display.inline)
+				return available + (wrapped.length - 2) * location.width + wrapped[wrapped.length - 1].length
+			else
+				return wrapped.length
 		}
 		// Write the text onto the line, and cut off any overflow
-		else
-			LogBuffer.updateString(output, update, text, location.x + cursor)
+		else {
+			const offset = LogBuffer.updateString(output, update, text, x + cursor, x + location.width)
+			return display.inline ? offset : 1
+		}
 	}
 
-	private static updateString(buffer: Buffer, update: Buffer, sequence: string, x?: number, end?: number) {
+	private static updateString(buffer: Buffer, update: Buffer, sequence: string, x?: number, end?: number): number {
 		return LogBuffer.updateByteSequence(buffer, update, Buffer.from(sequence, 'utf8'), x, end)
 	}
 
@@ -73,30 +98,33 @@ export default class LogBuffer {
 		sequence: Buffer,				// The sequence of bytes to write into the buffer
 		x: number = 0,					// The position to write at into the sequence
 		end: number = buffer.length		// The number of bytes in the buffer to fill
-	) {
-		// Shift first update byte
-		let bitShift = x % 8
-
+	): number {
 		// Iterate over sequence and set update bits into a full byte before updating
 		let updateByte = 0
-		for (let byte = 0 ; byte < sequence.length ; byte += 8) {
+		let startBit = x % 8
+
+		// Iterate over groups of 8 bytes to set the update bits
+		for (let byte = 0 ; byte < sequence.length && x + byte < buffer.length ; byte += 8) {
 
 			// Start first iteration with a bit shift which is set to 0 for subsequent iterations
-			let bit = bitShift
-			for (; bit < 8 && byte + bit - bitShift < sequence.length ; bit++) {
+			for (let bit = startBit ; bit < 8 ; bit++) {
 
 				// Get indexes to compare sequence against buffer
-				const index = byte + bit
+				const index = byte + bit - startBit
 				const bufferIndex = x + index
-				if (bufferIndex >= end)
+				// Terminate loop and set update byte
+				if (index >= sequence.length || bufferIndex >= end) {
+					// Shift update byte by remaining bits to align properly
+					updateByte = updateByte << (8 - bit)
 					break
+				}
 
 				// If there is a new byte to write into the buffer, add it
 				// and set the update bit for this byte
 				const newByte = sequence.readUint8(index)
 				if (buffer.readUint8(bufferIndex) != newByte) {
 					buffer.writeUint8(newByte, bufferIndex)
-					updateByte = updateByte | 0b1
+					updateByte = updateByte | 1
 				}
 
 				// If not last bit, shift the update byte to make space for the next bit
@@ -105,68 +133,110 @@ export default class LogBuffer {
 			}
 
 			// Write the update byte into the buffer
-			const offset = Math.floor((x + byte) / 8)
-			update.writeUint8(update.readUint8(offset) | updateByte, offset)
+			const updateIndex = Math.floor((x + byte) / 8)
+			update.writeUint8(update.readUint8(updateIndex) | updateByte, updateIndex)
 
-			// Stop bit shifting after first iteration
-			bitShift = 0
+			// Stop offsetting bits after first iteration
+			startBit = 0
 		}
+
+		// Return total bytes written
+		return Math.min(sequence.length, buffer.length - x)
 	}
 
-	setColor(color: number, area: Dimension) {
-		LogBuffer.updateByteArea(this.color, this.update, color, area, this.size)
+	setColor(color: number, area: Location) {
+		LogBuffer.updateByteArea(this.color, this.update, color, area)
 	}
 
-	setBackground(color: number, area: Dimension) {
+	setBackground(color: number, area: Location) {
 
 	}
 
-	private static updateByteArea(array: Array<Buffer>, update: Array<Buffer>, byte: number, area: Dimension, parent: Dimension) {
-		const startX = area.x || 0
-		const startY = area.y || 0
-		const width = area.width || parent.width || 0
-		const height = area.height || parent.height || 0
+	private static updateByteArea(array: Array<Buffer>, update: Array<Buffer>, value: number, area: Location) {
+		if (array.length == 0) return
+		// Parse location
+		const startX = Math.min(Math.max(0, area.x), array[0].length),
+			  startY = Math.min(Math.max(0, area.y), array.length),
+		 	  endX = Math.min(startX + Math.max(0, area.width), array[0].length),
+		 	  endY = Math.min(startY + Math.max(0, area.height), array.length)
 
-		for (let y = startY ; y < startY + height ; y++) {
-			if (parent.height != null && y > parent.height) break
+		// Iterate over each target row
+		for (let y = startY ; y < endY ; y++) {
+			const line = array[y]
 
-			// Iterate over lines and update changed bits
-			for (let x = startX ; x < startX + width ; x++) {
-				if (LogBuffer.setByte(array, x, y, byte))
-					LogBuffer.setBit(update, x, y)
+			// Update bitmask and starting bit index for first byte
+			let updated = 0
+			let startBit = startX % 8
+
+			// Iterate over row in groups of 8 bytes
+			for (let byte = startX ; byte < endX ; byte += 8) {
+				for (let bit = startBit ; bit < 8 ; bit++) {
+
+					// Use bit index and initial offset to calculate iterated index
+					const index = byte + bit - startBit
+					if (index >= endX) {
+						updated = updated << (8 - bit)
+						break
+					}
+
+					// If the array value is changing, set the update bit
+					const current = line.readUint8(index)
+					if (current != value) {
+						line.writeUint8(value, index)
+						updated = updated | 1
+					}
+
+					// Make a space for the next bit
+					if (bit != 7)
+						updated = updated << 1
+				}
+
+				// Insert the update byte into the buffer and clear the bit offset
+				const updateIndex = Math.floor(byte / 8)
+				update[y].writeUint8(update[y].readUint8(updateIndex) | updated, updateIndex)
+				startBit = 0
 			}
 		}
 	}
 
-	private static setByte(array: Array<Buffer>, x: number, y: number, byte: number) {
-		if (y >= 0 && y < array.length) {
-			const row = array[y]
-			if (x >= 0 && x < row.length && row.readUInt8(x) != byte) {
-				row.writeUInt8(byte, x)
-				return true
-			}
+	static lineWrapOffset(text: string, location: Location) {
+		// Do a line wrap operation and cache the results
+		const line = LogBuffer.lineWrap(text, location)
+		location.wrap = line
+
+		return inlineRemaining(location) + (line.length - 2) * location.width +
+			(line.length > 1 ? line[line.length - 1].length : 0)
+	}
+
+	private static lineWrap(text: string, location: Location): Array<string> {
+		const cursor = location.cursor || 0
+		// Edge case to prevent infinite recursion if cursor is at end of line
+		if (cursor >= location.width)
+			return [ '', ...LogBuffer.lineWrap(text, { ...location, cursor: 0 }) ]
+		// If the text fits on this line
+		if (cursor + text.length <= location.width)
+			return [ text ]
+
+		// Get the last space character or break the string as-is
+		const wrapIndex = location.width - cursor
+		const lastSpace = text.substring(0, wrapIndex).lastIndexOf(SPACE)
+		const endIndex = lastSpace >= 0 ? lastSpace : wrapIndex
+
+		// Recursively wrap the lines
+		return [
+			text.substring(0, endIndex),
+			...LogBuffer.lineWrap(text.substring(endIndex).replace(/^\s+/, ''), {
+				...location,
+				cursor: 0
+			})
+		]
+	}
+
+	render() {
+		for (let y = 0 ; y < this.text.length ; y++) {
+			console.log(this.text[y].toString('utf8'))
 		}
-		return false
 	}
-
-	private static setBit(bitArray: Array<Buffer>, x: number, y: number, bit: number = 1) {
-		if (bitArray.length < y) return
-
-		// Calculate the offset and bitmask to apply
-		const offset = Math.floor(x / 8)
-		const bitMask = (1 << (bit % 8))
-		const byteLine = bitArray[y]
-		if (offset >= byteLine.length) return
-
-		// Read the byte containing the bit values
-		const byte = byteLine.readUint8(offset)
-
-		// Write the bit if it is not already set
-		if ((byte & bitMask) != bit)
-			bitArray[y].writeUint8(byte | bitMask, offset)
-	}
-
-
 
 	resize(size: Dimension) {
 		// TODO

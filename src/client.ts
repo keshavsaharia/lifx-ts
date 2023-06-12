@@ -15,7 +15,8 @@ import {
 	QueuedRequest,
 	LifxDeviceHandler,
 	DeviceGroup,
-	ClientState
+	ClientState,
+	ResultObject
 } from './interface'
 
 import {
@@ -64,7 +65,6 @@ export default class LifxClient {
 	// Network interface and socket
 	private network: Array<LifxNetworkInterface>
 	private udp: dgram.Socket
-	private udpListener: Function
 	private port: number
 	private alive: boolean
 	private monitoring?: NodeJS.Timer
@@ -387,7 +387,7 @@ export default class LifxClient {
 		return this.on('disconnect', handler)
 	}
 
-	async send<R>(packet: Packet<R>, device: LifxDevice): Promise<Transmission> {
+	async send<Result extends ResultObject>(packet: Packet<Result>, device: LifxDevice): Promise<Transmission> {
 		if (! this.alive)
 			await this.start()
 
@@ -398,7 +398,14 @@ export default class LifxClient {
 		return transmission
 	}
 
-	async get<Result>(packet: Packet<Result>, device: LifxDevice, timeout?: number): Promise<Result> {
+	/**
+	 * @func    get
+	 * @desc	Sends the specified packet to the Lifx device and returns a Promise that resolves
+	 * 			either when the packet is responded to, or the specified timeout (default is 3 seconds)
+	 * 			is reached. The returned result is not always exactly corresponding to the current light
+	 * 			state, e.g. the returned value for a color change packet may have a stale value in the result.
+	 */
+	async get<Result extends ResultObject>(packet: Packet<Result>, device: LifxDevice, timeout?: number): Promise<Result> {
 		if (! this.alive)
 			await this.start()
 
@@ -441,7 +448,7 @@ export default class LifxClient {
 	 * @desc	Broadcast the given packet to all devices reachable by the given network interace.
 	 * @param 	{Packet<R>}
 	 */
-	private async broadcast<R>(packet: Packet<R>, network: LifxNetworkInterface) {
+	private async broadcast<Result extends ResultObject>(packet: Packet<Result>, network: LifxNetworkInterface) {
 		if (! this.alive)
 			throw ClientDisconnectError
 
@@ -457,6 +464,8 @@ export default class LifxClient {
 		if (! this.alive)
 			throw ClientDisconnectError
 
+		// Checks the device rate limit to potentially queue the packet for later
+		// transmission (or upon receipt of a response for a pending packet sent via .get)
 		if (device.canSend())
 			return unicast(this.udp, transmission.buffer, device.getIP(), device.getPort())
 		else
@@ -520,6 +529,40 @@ export default class LifxClient {
 							enqueued.reject(error)
 							return 0
 						})))
+	}
+
+	/**
+	 * @func 	dequeueFirst
+	 * @desc 	Send the first enqueued message for the given device if there is one.
+	 * @see 	enqueue, this.daemon
+	 */
+	private async dequeueFirst(device: LifxDevice) {
+		// Empty queue
+		if (! this.alive || this.queue.length == 0)
+			return
+
+		for (let i = 0 ; i < this.queue.length ; i++) {
+			const enqueued = this.queue[i]
+
+			// Return a unicast of the first enqueued packet
+			if (enqueued.device == device) {
+				this.queue.splice(i, 1)
+
+				return unicast(this.udp,
+						enqueued.transmission.buffer,
+						enqueued.device.getIP(),
+						enqueued.device.getPort())
+					.then((bytes) => {
+						enqueued.resolve(bytes)
+					})
+					.catch((error) => {
+						enqueued.reject(error)
+						return 0
+					})
+			}
+		}
+
+		return 0
 	}
 
 	//

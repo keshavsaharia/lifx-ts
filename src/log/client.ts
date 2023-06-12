@@ -12,6 +12,7 @@ import {
 } from '../interface'
 
 import LogEmitter from './emitter'
+import LogView from './ui/view'
 
 import {
 	LogClientState
@@ -22,6 +23,7 @@ export default class ClientLogEmitter extends LogEmitter {
 	client: LifxClient
 
 	logState: LogClientState
+	testView: LogView
 
 	selected = 1
 
@@ -30,10 +32,18 @@ export default class ClientLogEmitter extends LogEmitter {
 		this.client = client
 		// Initialize interactive logger
 		this.logState = new LogClientState(client)
+
+		this.testView = new LogView({
+			width: 50,
+			height: 20
+		})
+
+		this.testView.add('Hello world!')
 	}
 
 	render(): KeyHandler | null {
-		this.logState.update()
+		// this.logState.update()
+		this.testView.log()
 
 		// Render client state
 		console.log(this.logState.toString())

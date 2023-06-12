@@ -37,6 +37,7 @@ export interface Response {
 export type RequestClass<Param> = {
 	new(client: LifxClient): RequestInstance<Param>
 }
+
 export interface RequestInstance<Param> {
 	respond(request: Request, param?: Param): Promise<Response>
 	parameter(param: string): Param

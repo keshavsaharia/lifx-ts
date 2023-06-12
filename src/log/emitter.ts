@@ -66,7 +66,7 @@ export default abstract class LogEmitter {
 			return null
 		this.lastRefresh = Date.now()
 
-		console.clear()
+		// console.clear()
 		const map = this.render()
 		if (interruptKeypress || ! this.keypressHandler)
 			return this.getNextKeypress(map)
@@ -80,14 +80,12 @@ export default abstract class LogEmitter {
 			const now = Date.now()
 			const sinceLastRefresh = now - this.lastRefresh
 			if (sinceLastRefresh >= REFRESH_RATE) {
-				console.log('immediate refresh', interruptKeypress)
 				if (interruptKeypress)
 					this.interruptKeypress()
 				this.refresh(interruptKeypress)
 			}
 			else
 				this.refreshTimeout = setTimeout(function() {
-					console.log('delay refresh', interruptKeypress)
 					if (interruptKeypress)
 						this.interruptKeypress()
 					this.refresh(interruptKeypress)
@@ -122,7 +120,7 @@ export default abstract class LogEmitter {
 					// else this.triggerRefresh()
 				}
 				else {
-					console.log('no key')
+					// console.log('no key')
 					this.triggerRefresh()
 				}
 			}

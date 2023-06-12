@@ -8,12 +8,15 @@ import {
 import {
 	cropLocation,
 	lineWrap,
-	padLocation
+	padLocation,
+	inlineRemaining,
+	inlineHeight
 } from './util'
 
 export default class LogView {
 	parent?: LogView
 	child?: Array<LogView | string>
+	root?: LogBuffer
 	rendering?: boolean
 
 	size: Dimension
@@ -23,25 +26,23 @@ export default class LogView {
 		this.size = size || {}
 	}
 
-	render(buffer: LogBuffer, location: Location) {}
+	private render(buffer: LogBuffer, location: Location) {}
 
 	/**
 	 * @func 	recursiveRender
 	 * @desc 	Write into a given LogBuffer and recursively write children
 	 */
-	private recursiveRender(buffer: LogBuffer, cursor: number = 0) {
+	private recursiveRender(buffer: LogBuffer) {
 		// If this view is not visible
 		if (this.location == null)
-			return
+			return null
 
 		// Render into the buffer
-		this.location.cursor = cursor
 		this.renderInMutex(buffer, this.location)
 
 		if (this.child) {
-			const inline = this.size.inline === true
-			const wrap = this.size.wrap === true
-			let used = 0
+			const cache = this.location.display
+			let offset = 0
 
 			for (let c = 0 ; c < this.child.length ; c++) {
 				const child = this.child[c]
@@ -49,33 +50,17 @@ export default class LogView {
 				if (child instanceof LogView) {
 					child.recursiveRender(buffer)
 				}
-				else if (inline) {
-
-				}
 				else {
-					buffer.write(child, {
-						...this.location,
-						y: this.location.y + 4
-					})
+					// Get the cached display parameters or regenerate them
+					const display = (cache && cache[c]) ? cache[c] :
+									cropLocation(this.location, this.size, offset)
+					// Add to the offset
+					offset += buffer.write(child, display, this.size)
 				}
-
 			}
 		}
-		// Start rendering of this element in the background
-		this.render(buffer, location)
 
-		// Perform rendering of visible child elements next in the foreground
-		for (let c = 0 ; c < placement.length ; c++) {
-			const child = this.child[c]
-			const display = placement[c]
-
-			if (child instanceof LogView)
-				child.recursiveRender(buffer, display)
-			else
-				buffer.write(child, display)
-		}
-
-		return null
+		return this.location
 	}
 
 	private renderLocation(location: Location) {
@@ -96,16 +81,15 @@ export default class LogView {
 		// Constants for calculating total inline or block spacing used
 		const inline = this.size.inline === true
 		const wrap = this.size.wrap === true
-		const space = inline ? location.width : location.height
 		// Store total space used/lines wrapped/max child size
-		let used = 0, max = 0
+		let offset = 0
 
 		// If this is an inline view within another inline view that set
 		// a cursor position to continue from, otherwise start a new line for a block
 		// if not at the start index of the location
 		const cursor = inline ? (location.cursor || 0) : 0
 		if (! inline && location.cursor != null && cursor > 0)
-			used++
+			offset++
 
 		// Iterate over children and either add string size directly, or compute
 		// child size of nested views recursively, then remove cached locations for
@@ -113,79 +97,62 @@ export default class LogView {
 		let c = 0
 		for (; c < this.child.length ; c++) {
 			const child = this.child[c]
+			const display = cropLocation(location, this.size, offset)
 
 			// Recursively render location with remaining available space
 			if (child instanceof LogView) {
-				const available = cropLocation(location, used, inline, wrap)
-				child.location = child.renderLocation(available)
+				child.location = child.renderLocation(display)
 				if (! child.location)
 					continue
 
-				if (inline) {
-					if (wrap && child.location.height > 1) {
-
-					}
-					// Always set at end of recursive call to renderLocation by inline elements
-					else if (child.location.cursor != null) {
-
-					}
-				}
-				else used += child.location.height
+				// Add either the inline offset, or the block height, to the total offset
+				offset += inline ? (child.location.offset || 0) : child.location.height
 			}
-			// If it is a string in an inline container
-			else if (inline) {
-				const available = space - ((cursor + used) % space)
-				if (wrap && child.length > available) {
-					const lines = lineWrap(child, cropLocation(location, used, inline, wrap))
-					const lastLine = lines[lines.length - 1]
-					used += available + lines.length * location.width + lastLine.length
-				}
-				else {
-					used += Math.min(child.length, space - used)
-					max = 1
-				}
-			}
-			// String in a block container
+			// String case
 			else {
-				// Compute line wrap and add lines to space
-				if (wrap && child.length > space) {
-					const lines = lineWrap(child, cropLocation(location, used))
-					used += lines.length
+				// Cache display object for rendering
+				if (! location.display)
+					location.display = {}
+				location.display[c] = display
+
+				// If it is a string in an inline container
+				if (inline) {
+					const available = inlineRemaining(location, offset)
+					if (wrap && child.length > available)
+						offset += LogBuffer.lineWrapOffset(child, display)
+					else
+						offset += Math.min(child.length, available)
 				}
-				// Use one line of space
-				else used++
+				// String in a block container
+				else {
+					// Compute line wrap and add lines to space
+					if (wrap && child.length > location.width)
+						offset += lineWrap(child, display).length
+					// Use one line of space
+					else offset++
+				}
 			}
 
-			// Stop calculating size if all space is used in an inline wrapped space
-			if (inline && wrap) {
-				// If line wrap is past the height
-				if (Math.floor(used / location.width) > location.height)
+			// Stop calculating size if all space is offset in an inline wrapped space
+			if (inline) {
+				if (wrap && inlineHeight(location, offset) > location.height)
 					break
 			}
-			else if (used >= space)
+			// If a block container has gone past the height
+			else if (offset >= location.height)
 				break
 		}
 
-		// Remove cached locations for any remaining children that are not being displayed
-		for (; c < this.child.length ; c++) {
-			const child = this.child[c]
-			if (child instanceof LogView)
-				child.location = null
-		}
-
-		// If this is an inline container, calculate the consumed size
+		// If this is an inline container, calculate the consumed height and pass the total offset
 		if (inline) {
-			location.width = used < space ? used : space
-			location.height = wrap ? Math.ceil(used / space) : max
-			// Pass the new cursor value up
-			location.cursor = used % space
+			location.height = inlineHeight(location, offset)
+			location.offset = offset
 		}
 		// For block elements
 		else {
-			// If this view did not fill the location, set to total used space
-			if (used < space)
-				location.height = used
-			location.cursor = 0
+			// If this view did not fill the location, set to total offset space
+			location.height = Math.min(offset, location.height)
+			location.offset = offset
 		}
 
 		return location
@@ -204,7 +171,7 @@ export default class LogView {
 		return this
 	}
 
-	setParent(parent: LogView) {
+	private setParent(parent: LogView) {
 		if (this.rendering)
 			throw {}
 
@@ -216,6 +183,7 @@ export default class LogView {
 	}
 
 	add(...children: Array<LogView | string>) {
+
 		if (! this.child)
 			this.child = []
 		for (let i = 0 ; i < children.length ; i++) {
@@ -227,7 +195,22 @@ export default class LogView {
 		return this
 	}
 
+	log() {
+		if (! this.root && ! this.parent)
+			this.root = new LogBuffer(30, 15)
 
+		if (this.root) {
+			this.renderLocation({
+				x: 0, y: 0,
+				width: this.getWidth(),
+				height: this.getHeight()
+			})
+			this.recursiveRender(this.root)
+			this.root.render()
+		}
+		else if (this.parent)
+			this.parent.log()
+	}
 
 	/**
 	 * @func 	update
@@ -235,15 +218,6 @@ export default class LogView {
 	 */
 	update() {
 
-	}
-
-
-	getX() {
-		return this.size ? this.size.x : 0
-	}
-
-	getY() {
-		return this.size ? this.size.y : 0
 	}
 
 	getWidth(): number {

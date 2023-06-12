@@ -220,16 +220,16 @@ export default class Websocket extends Socket {
 		// If masked, get the next four bytes as an XOR mask and shift the remaining payload
 		// buffer over by four bytes
 		if (masked) {
-			const mask = buffer.slice(offset, offset + 4)
+			const mask = buffer.subarray(offset, offset + 4)
 
 			return {
-				payload: Buffer.from(buffer.slice(offset + 4, end).map((b, i) => (b ^ mask[i % 4]))),
-			 	overflow: buffer.slice(end)
+				payload: Buffer.from(buffer.subarray(offset + 4, end).map((b, i) => (b ^ mask[i % 4]))),
+			 	overflow: buffer.subarray(end)
 			}
 		}
 		else return {
-			payload: buffer.slice(offset, end),
-			overflow: buffer.slice(end)
+			payload: buffer.subarray(offset, end),
+			overflow: buffer.subarray(end)
 		}
 	}
 

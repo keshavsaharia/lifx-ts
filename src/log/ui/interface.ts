@@ -11,7 +11,9 @@ export interface Location {
 
 	// For recursive rendering inline text
 	cursor?: number
-	wrap?: boolean
+	offset?: number
+	wrap?: Array<string>
+	display?: { [child: number]: Location }
 }
 
 export interface Dimension {

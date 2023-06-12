@@ -34,8 +34,8 @@ export default class Response {
 
 	constructor(response: Buffer, info: dgram.RemoteInfo) {
 		this.response = response
-		this.header = response.slice(0, 36)
-		this.payload = new Payload(response.slice(36))
+		this.header = response.subarray(0, 36)
+		this.payload = new Payload(response.subarray(36))
 		this.ip = info.address
 
 		this.parseHeader()
@@ -55,7 +55,7 @@ export default class Response {
 		this.source = this.header.readUInt32LE(4)
 
 		// Target address of device and corresponding MAC address
-		this.target = this.header.slice(8, 16).toString('hex').toLowerCase()
+		this.target = this.header.subarray(8, 16).toString('hex').toLowerCase()
 		this.mac = this.target.split('')
 						.map((c, i, a) => ((i % 2 == 0) ? (c + a[i + 1]) : ''))
 						.filter((p) => p.length > 0).join(':')

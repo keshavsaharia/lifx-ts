@@ -110,14 +110,14 @@ export default class Payload {
 			if (this.buffer.readUint8(this.offset + i) == 0) break
 
 		// Return the UTF8 string up to the last terminating byte, or the full length
-		const str = this.buffer.slice(this.offset, this.offset + i).toString('utf8')
+		const str = this.buffer.subarray(this.offset, this.offset + i).toString('utf8')
 		this.addOffset(length)
 		return str
 	}
 
 	getUUID(length: number) {
 		this.validateOffset(length)
-		const uuid = this.buffer.slice(this.offset, this.offset + length).toString('hex')
+		const uuid = this.buffer.subarray(this.offset, this.offset + length).toString('hex')
 		this.addOffset(length)
 		return uuid
 	}
